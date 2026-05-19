@@ -311,17 +311,9 @@ const provider = new firebase.auth.GoogleAuthProvider();
 async function login() {
   try {
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-    const result = await auth.signInWithPopup(provider);
-
-    if (result.user) {
-      DOC_ID = result.user.uid;
-      await init();
-    }
-
+    await auth.signInWithRedirect(provider);
   } catch (e) {
     console.error("ERREUR CONNEXION :", e);
-
     document.getElementById('loading').innerHTML = `
       <div style="font-size:32px">⚠️</div>
       <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:12px">
