@@ -307,6 +307,8 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
+auth.getRedirectResult().catch(e => console.error("REDIRECT ERROR:", e));
+
 
 async function login() {
   try {
