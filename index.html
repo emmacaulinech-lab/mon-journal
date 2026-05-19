@@ -305,18 +305,13 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-const db = firebase.firestore();
-
-let DOC_ID = null;
+auth.getRedirectResult().catch(e => {
+  console.error(e);
+});
 
 async function login() {
   try {
-    const result = await auth.signInWithPopup(provider);
-
-    DOC_ID = result.user.uid;
-
-    init();
-
+    await auth.signInWithRedirect(provider);
   } catch (e) {
     console.error(e);
     alert("Erreur de connexion");
