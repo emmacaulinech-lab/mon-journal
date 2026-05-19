@@ -320,12 +320,20 @@ async function login() {
   }
 }
 
+let DOC_ID = null;
+
 auth.onAuthStateChanged(user => {
   if (user) {
     DOC_ID = user.uid;
     init();
   } else {
-    login();
+    document.getElementById('loading').innerHTML = `
+      <div style="font-size:32px">🌸</div>
+      <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:12px">
+        Connecte-toi pour accéder à ton journal
+      </div>
+      <button class="btn" onclick="login()">Se connecter avec Google</button>
+    `;
   }
 });
 
