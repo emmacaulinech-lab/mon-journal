@@ -301,6 +301,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <script>
 const firebaseConfig={apiKey:"AIzaSyDh-KhzATGU3yGiLrvWASoAeSu280pK790",authDomain:"mon-journal-9a06b.firebaseapp.com",projectId:"mon-journal-9a06b",storageBucket:"mon-journal-9a06b.firebasestorage.app",messagingSenderId:"87579639660",appId:"1:87579639660:web:4d3fcd644208ac9bf67d49"};
 firebase.initializeApp(firebaseConfig);
+  
+const db = firebase.firestore();
 
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
