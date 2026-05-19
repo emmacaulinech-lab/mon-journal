@@ -307,20 +307,21 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 async function login() {
   try {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     await auth.signInWithPopup(provider);
   } catch (e) {
-    console.error(e);
+    console.error("ERREUR CONNEXION :", e);
+
     document.getElementById('loading').innerHTML = `
       <div style="font-size:32px">⚠️</div>
       <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:12px">
-        Connexion bloquée
+        Erreur de connexion
       </div>
-      <div style="font-size:13px;color:#666;text-align:center;max-width:280px;margin-bottom:12px">
-        Autorise les pop-ups ou ouvre le site dans Safari/Chrome.
+      <div style="font-size:13px;color:#666;text-align:center;max-width:300px;margin-bottom:12px">
+        ${e.code}<br>${e.message}
       </div>
       <button class="btn" onclick="login()">Réessayer</button>
     `;
