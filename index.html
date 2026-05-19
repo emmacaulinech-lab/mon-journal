@@ -311,7 +311,14 @@ const provider = new firebase.auth.GoogleAuthProvider();
 async function login() {
   try {
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    await auth.signInWithPopup(provider);
+
+    const result = await auth.signInWithPopup(provider);
+
+    if (result.user) {
+      DOC_ID = result.user.uid;
+      await init();
+    }
+
   } catch (e) {
     console.error("ERREUR CONNEXION :", e);
 
