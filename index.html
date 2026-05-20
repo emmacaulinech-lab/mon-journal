@@ -303,59 +303,51 @@ const firebaseConfig={apiKey:"AIzaSyDh-KhzATGU3yGiLrvWASoAeSu280pK790",authDomai
 firebase.initializeApp(firebaseConfig);
   
 const db = firebase.firestore();
-
 const auth = firebase.auth();
-const provider = new firebase.auth.GoogleAuthProvider();
 
-auth.getRedirectResult().catch(e => console.error("REDIRECT ERROR:", e));
-
-
-async function login() {
-  try {
-    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    try {
-      await auth.signInWithPopup(provider);
-    } catch (popupError) {
-      if (popupError.code === 'auth/popup-blocked' || 
-          popupError.code === 'auth/popup-closed-by-user' ||
-          popupError.code === 'auth/cancelled-popup-request') {
-        await auth.signInWithRedirect(provider);
-      } else {
-        throw popupError;
-      }
-    }
-  } catch (e) {
-    console.error("ERREUR CONNEXION :", e);
-    document.getElementById('loading').innerHTML = `
-      <div style="font-size:32px">⚠️</div>
-      <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:12px">
-        Erreur de connexion
-      </div>
-      <div style="font-size:13px;color:#666;text-align:center;max-width:300px;margin-bottom:12px">
-        ${e.code}<br>${e.message}
-      </div>
-      <button class="btn" onclick="login()">Réessayer</button>
-    `;
-  }
-}
-}
-
-let DOC_ID = null;
+let DOC_ID_USER = 'journal-principal';
 
 auth.onAuthStateChanged(user => {
   if (user) {
-    DOC_ID = user.uid;
+    DOC_ID_USER = user.uid;
     init();
   } else {
-    document.getElementById('loading').innerHTML = `
-      <div style="font-size:32px">🌸</div>
-      <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:12px">
-        Connecte-toi pour accéder à ton journal
-      </div>
-      <button class="btn" onclick="login()">Se connecter avec Google</button>
-    `;
+    showLoginScreen();
   }
 });
+
+function showLoginScreen() {
+  document.getElementById('loading').innerHTML = `
+    <div style="font-size:32px">🌸</div>
+    <div style="font-size:15px;color:#993556;font-weight:700;margin-bottom:16px">Mon journal</div>
+    <input id="auth-email" type="email" placeholder="Email"
+      style="width:240px;padding:10px 14px;border:1.5px solid #F4C0D1;border-radius:10px;font-size:14px;outline:none;margin-bottom:8px;display:block"/>
+    <input id="auth-pwd" type="password" placeholder="Mot de passe"
+      style="width:240px;padding:10px 14px;border:1.5px solid #F4C0D1;border-radius:10px;font-size:14px;outline:none;margin-bottom:12px;display:block"/>
+    <button class="btn" onclick="loginEmail()">Entrer</button>
+    <div id="auth-err" style="color:#A32D2D;font-size:12px;margin-top:8px"></div>
+  `;
+}
+
+async function loginEmail() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pwd = document.getElementById('auth-pwd').value;
+  if(!email || !pwd) return;
+  try {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    await auth.signInWithEmailAndPassword(email, pwd);
+  } catch(e) {
+    if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+      try {
+        await auth.createUserWithEmailAndPassword(email, pwd);
+      } catch(e2) {
+        document.getElementById('auth-err').textContent = e2.message;
+      }
+    } else {
+      document.getElementById('auth-err').textContent = e.message;
+    }
+  }
+}
 
 const TODAY=new Date();
 const TSTR=TODAY.toISOString().split('T')[0];
@@ -458,7 +450,7 @@ function syncStatus(s){const dot=document.getElementById('sync-dot');dot.classNa
 async function loadFromFirebase(){
   try{
     syncStatus('syncing');
-    const doc=await db.collection('journal').doc(DOC_ID).get();
+    const doc=await db.collection('journal').doc(DOC_ID_USER).get();
     if(doc.exists){
       const data=doc.data();
       if(data.DB)Object.assign(DB,JSON.parse(data.DB));
@@ -476,7 +468,7 @@ function sv(){
   saveTimer=setTimeout(async()=>{
     try{
       syncStatus('syncing');
-      await db.collection('journal').doc(DOC_ID).set({DB:JSON.stringify(DB),customTasks:TASKS.filter(t=>t.cu||t.custom),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection('journal').doc(DOC_ID_USER).set({DB:JSON.stringify(DB),customTasks:TASKS.filter(t=>t.cu||t.custom),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
       syncStatus('ok');
     }catch(e){console.error(e);syncStatus('error');}
   },800);
