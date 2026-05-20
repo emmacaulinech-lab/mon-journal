@@ -307,13 +307,12 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
-auth.getRedirectResult().catch(e => console.error("REDIRECT ERROR:", e));
 
 
 async function login() {
   try {
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    await auth.signInWithRedirect(provider);
+    await auth.signInWithPopup(provider);
   } catch (e) {
     console.error("ERREUR CONNEXION :", e);
     document.getElementById('loading').innerHTML = `
@@ -327,6 +326,7 @@ async function login() {
       <button class="btn" onclick="login()">Réessayer</button>
     `;
   }
+}
 }
 
 let DOC_ID = null;
