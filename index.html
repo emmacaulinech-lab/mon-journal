@@ -307,12 +307,23 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
+auth.getRedirectResult().catch(e => console.error("REDIRECT ERROR:", e));
 
 
 async function login() {
   try {
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-    await auth.signInWithPopup(provider);
+    try {
+      await auth.signInWithPopup(provider);
+    } catch (popupError) {
+      if (popupError.code === 'auth/popup-blocked' || 
+          popupError.code === 'auth/popup-closed-by-user' ||
+          popupError.code === 'auth/cancelled-popup-request') {
+        await auth.signInWithRedirect(provider);
+      } else {
+        throw popupError;
+      }
+    }
   } catch (e) {
     console.error("ERREUR CONNEXION :", e);
     document.getElementById('loading').innerHTML = `
