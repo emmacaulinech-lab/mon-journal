@@ -285,8 +285,18 @@ textarea{resize:none;min-height:80px;line-height:1.6}
       </div>
     </div>
 
-    <!-- LIVRE -->
-    <div class="slbl">📚 Lecture du moment</div>
+    <!-- LIVRE EN COURS -->
+    <div class="slbl">📖 Mon livre en cours</div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header">
+        <span class="card-title">📖 En cours</span>
+        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="openEditLivreCours()">✏️ Modifier</button>
+      </div>
+      <div id="livre-cours-content" style="padding:14px"></div>
+    </div>
+
+    <!-- LIVRE SUGGESTION -->
+    <div class="slbl">📚 Prochaine lecture</div>
     <div class="card">
       <div class="card-header">
         <span class="card-title">📚 Suggestion</span>
@@ -1180,6 +1190,148 @@ function initLastDates(){
   DB.lastDatesInit=true;
   sv();
 }
+
+// ═══════════════════════════════════════
+// LIVRE EN COURS
+// ═══════════════════════════════════════
+function renderLivreCours(){
+  const el=document.getElementById('livre-cours-content');
+  if(!el) return;
+
+  const l=DB.livreCours;
+
+  if(!l||!l.titre){
+    el.innerHTML=`
+      <div style="text-align:center;padding:16px">
+        <div style="font-size:32px;margin-bottom:8px">📖</div>
+        <div style="font-size:13px;color:#aaa;margin-bottom:12px">Aucun livre en cours</div>
+        <button class="btn btn-rose" onclick="openEditLivreCours()">+ Ajouter mon livre</button>
+      </div>`;
+    return;
+  }
+
+  const pct=l.pages?Math.round(l.pageCourante/l.pages*100):0;
+  const pagesRestantes=l.pages?(l.pages-l.pageCourante):null;
+
+  // Estimation fin selon rythme
+  let estimation='';
+  if(l.dateDebut&&l.pages&&l.pageCourante>0){
+    const debut=new Date(l.dateDebut+'T12:00:00');
+    const jours=Math.max(1,Math.floor((TODAY-debut)/86400000));
+    const rythmePagesParJour=l.pageCourante/jours;
+    if(rythmePagesParJour>0&&pagesRestantes>0){
+      const joursRestants=Math.ceil(pagesRestantes/rythmePagesParJour);
+      const dateFin=new Date(TODAY);
+      dateFin.setDate(TODAY.getDate()+joursRestants);
+      estimation=`Fin estimée : ${dateFin.getDate()} ${MOIS[dateFin.getMonth()]} (${joursRestants}j)`;
+    }
+  }
+
+  el.innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700;color:#2d2d2d;margin-bottom:3px">${l.titre}</div>
+      <div style="font-size:12px;color:#D4537E">${l.auteur||''}</div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:12px;color:#993556;font-weight:700">${pct}%</span>
+      <span style="font-size:11px;color:#aaa">${l.pageCourante||0} / ${l.pages||'?'} pages</span>
+    </div>
+    <div style="height:8px;background:#F4C0D1;border-radius:99px;overflow:hidden;margin-bottom:12px">
+      <div style="height:100%;background:linear-gradient(90deg,#993556,#D4537E);border-radius:99px;width:${pct}%;transition:width .4s"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button onclick="adjPageCourante(-10)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #F4C0D1;background:white;font-size:16px;cursor:pointer">−</button>
+      <div style="flex:1;text-align:center">
+        <div style="font-size:11px;color:#aaa;margin-bottom:2px">Page actuelle</div>
+        <input type="number" value="${l.pageCourante||0}" min="0" max="${l.pages||9999}"
+          onchange="setPageCourante(parseInt(this.value))"
+          style="width:80px;text-align:center;padding:6px;border:1.5px solid #F4C0D1;border-radius:10px;font-size:16px;font-weight:700;color:#993556;font-family:inherit"/>
+      </div>
+      <button onclick="adjPageCourante(10)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid #993556;background:#993556;color:white;font-size:16px;cursor:pointer">+</button>
+    </div>
+
+    ${estimation?`<div style="font-size:11px;color:#085041;background:#E1F5EE;border-radius:8px;padding:6px 10px;margin-bottom:10px">📅 ${estimation}</div>`:''}
+    ${l.dateDebut?`<div style="font-size:11px;color:#aaa">Commencé le ${new Date(l.dateDebut+'T12:00:00').getDate()} ${MOIS[new Date(l.dateDebut+'T12:00:00').getMonth()]}</div>`:''}
+
+    ${pct>=100?`<button class="btn btn-rose" style="margin-top:10px;width:100%" onclick="finirLivre()">🎉 Terminer ce livre !</button>`:''}`;
+}
+
+function adjPageCourante(delta){
+  if(!DB.livreCours) return;
+  DB.livreCours.pageCourante=Math.max(0,Math.min(DB.livreCours.pages||9999,(DB.livreCours.pageCourante||0)+delta));
+  sv();renderLivreCours();
+}
+
+function setPageCourante(val){
+  if(!DB.livreCours) return;
+  DB.livreCours.pageCourante=Math.max(0,Math.min(DB.livreCours.pages||9999,val||0));
+  sv();renderLivreCours();
+}
+
+function openEditLivreCours(){
+  const l=DB.livreCours||{};
+  document.getElementById('mTitle')||document.createElement('div');
+
+  // Utiliser le modal gratitude existant ou créer un mini modal
+  const modal=document.getElementById('grat-modal');
+  const box=modal.querySelector('.modal-box');
+  box.innerHTML=`
+    <div style="font-size:16px;font-weight:700;color:#993556;margin-bottom:16px;display:flex;justify-content:space-between">
+      📖 Mon livre en cours
+      <button onclick="document.getElementById('grat-modal').classList.remove('open')" style="background:none;border:none;font-size:22px;color:#aaa;cursor:pointer">×</button>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#D4537E;display:block;margin-bottom:5px">Titre</label>
+      <input type="text" id="lc-titre" value="${l.titre||''}" placeholder="Titre du livre..." style="font-size:14px"/>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#D4537E;display:block;margin-bottom:5px">Auteur</label>
+      <input type="text" id="lc-auteur" value="${l.auteur||''}" placeholder="Auteur..."/>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#D4537E;display:block;margin-bottom:5px">Pages total</label>
+        <input type="number" id="lc-pages" value="${l.pages||''}" placeholder="ex: 350"/>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#D4537E;display:block;margin-bottom:5px">Page actuelle</label>
+        <input type="number" id="lc-page" value="${l.pageCourante||0}" placeholder="0"/>
+      </div>
+    </div>
+    <button class="btn btn-rose" onclick="saveLivreCours()" style="margin-top:6px">✓ Enregistrer</button>`;
+  modal.classList.add('open');
+}
+
+function saveLivreCours(){
+  const titre=document.getElementById('lc-titre')?.value?.trim();
+  if(!titre){toast('⚠ Titre requis');return;}
+  if(!DB.livreCours) DB.livreCours={};
+  const isNew=!DB.livreCours.titre||DB.livreCours.titre!==titre;
+  DB.livreCours={
+    titre,
+    auteur:document.getElementById('lc-auteur')?.value?.trim()||'',
+    pages:parseInt(document.getElementById('lc-pages')?.value)||null,
+    pageCourante:parseInt(document.getElementById('lc-page')?.value)||0,
+    dateDebut:isNew?TSTR:(DB.livreCours.dateDebut||TSTR)
+  };
+  sv();
+  document.getElementById('grat-modal').classList.remove('open');
+  renderLivreCours();
+  toast('✓ Livre enregistré !');
+}
+
+function finirLivre(){
+  if(!DB.livreCours) return;
+  if(!confirm(`Tu as fini "${DB.livreCours.titre}" ? 🎉`)) return;
+  // Marquer comme lu dans la liste livres
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+  if(!DB.livres.lus.includes(DB.livreCours.titre)) DB.livres.lus.push(DB.livreCours.titre);
+  DB.livreCours=null;
+  sv();renderLivreCours();renderLivre();
+  toast('🎉 Félicitations, livre terminé !');
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -2036,6 +2188,7 @@ function renderAll(){
   renderRecette();
   loadFrigo();
   renderLivre();
+  renderLivreCours();
   if(DB.intention) document.getElementById('int-inp').value=DB.intention;
   if(DB.q1) document.getElementById('q1').value=DB.q1;
   if(DB.q2) document.getElementById('q2').value=DB.q2;
