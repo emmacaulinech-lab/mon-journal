@@ -1536,6 +1536,7 @@ function getDuree(taskId){
 }
 
 function addMinutes(heureStr, minutes){
+  if(!heureStr||typeof heureStr!=='string'||!heureStr.includes(':')) heureStr='07:00';
   const [h,m]=heureStr.split(':').map(Number);
   const total=h*60+m+minutes;
   const nh=Math.floor(total/60)%24;
@@ -1701,14 +1702,15 @@ function buildPlanning(){
 }
 
 function calcHeures(blocs){
-  // Calculer l'heure de fin de chaque tâche
   blocs.forEach(bloc=>{
+    if(!bloc.heureDebut) bloc.heureDebut='07:00';
     let h=bloc.heureDebut;
     bloc.tasks.forEach(t=>{
+      if(!h||typeof h!=='string'||!h.includes(':')) h='07:00';
       t.heureDebut=h;
       h=addMinutes(h,getDuree(t.id));
     });
-    bloc.heureFin=h;
+    bloc.heureFin=h||'23:59';
   });
 }
 
