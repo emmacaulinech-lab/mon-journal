@@ -688,7 +688,7 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
   }
 
 if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
-    const tachesAM=getTasksFuture(isWork?3:4);
+    const tachesAM=getTasksFuture(isWork?3:5);
     blocs.push({
       id:'bloc-aprem',emoji:'☀️',label:isWork?'Après-midi':'Matin libre',
       heureDebut:isWork?travail.fin:'08:30',
@@ -697,7 +697,8 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     });
   }
 
-  const tachesSoir=getTasksFuture(tempsLibre);
+  const maxSoir=isWork?tempsLibre:2; // Max 2 tâches le soir les jours off
+  const tachesSoir=getTasksFuture(maxSoir);
   blocs.push({
     id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
     heureDebut:isWork?addMinutes(travail.fin,20):'17:00',
@@ -1888,8 +1889,8 @@ let openBlocs=new Set(['bloc-matin']); // Matin ouvert par défaut
 
 // Durées estimées par tâche (minutes)
 const DUREES={
-  'm1':5,'m2':10,'m3':20,'m4':5,'m5':5,'m6':2,'m7':5,'m8':2,
-  'm9':20,'m10':15,'m11':15,'m12':3,'m13':2,'m14':10,'m15':5,'m16':10,
+  'm1':5,'m2':5,'m3':10,'m4':3,'m5':1,'m6':2,'m7':5,'m8':2,
+  'm9':20,'m10':15,'m11':5,'m12':3,'m13':2,'m14':2,'m15':5,'m16':10,
   's1':2,'s2':5,'s3':10,'s4':10,'s5':30,'s6':15,'s7':10,'s8':3,'s9':2,'s10':20,'s11':5,
   'repas1':30,'repas2':15,
   'soir1':30,'soir2':60,'soir3':20,
