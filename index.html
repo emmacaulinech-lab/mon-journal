@@ -1585,7 +1585,9 @@ function openAddTache(blocId){
     if(dejaDans.has('j'+t.id)) return false;
     if(!t.f) return false;
     return isDue(t);
-  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)));
+  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
+  .map(t=>({...t,retardJours:daysSince(getLastDone('j'+t.id))-t.f}))
+  .sort((a,b)=>b.retardJours-a.retardJours);
 
   const el=document.getElementById('add-tache-list');
   if(!enRetard.length){
@@ -1598,7 +1600,9 @@ function openAddTache(blocId){
       return`<div onclick="addTacheToBloc('${t.id}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #F4C0D1;border-radius:12px;margin-bottom:6px;cursor:pointer;background:white;transition:background .1s" onmouseenter="this.style.background='#fdf6f9'" onmouseleave="this.style.background='white'">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600">${t.n}</div>
-          <div style="font-size:10px;color:#aaa;margin-top:2px">Dernière fois : ${retard} · Fréq. ${t.f}j</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px">
+            ${t.retardJours>0?`<span style="color:#991B1B;font-weight:700">+${t.retardJours}j de retard</span> · `:''}Fréq. ${t.f}j
+          </div>
         </div>
         <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
       </div>`;
