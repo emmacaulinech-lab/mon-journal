@@ -1690,7 +1690,11 @@ function getTasksBloc(max=3, exclude=[]){
 }
 
 function buildPlanning(){
-  if(DB.planning&&DB.planning.date===TSTR) return;
+  // Forcer la reconstruction si les blocs n'ont pas d'emoji
+  if(DB.planning&&DB.planning.date===TSTR){
+    const hasEmoji=DB.planning.blocs&&DB.planning.blocs[0]&&DB.planning.blocs[0].emoji;
+    if(hasEmoji) return;
+  }
   const blocs=buildBlocs();
   DB.planning={
     date:TSTR,
