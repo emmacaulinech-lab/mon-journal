@@ -1591,25 +1591,14 @@ function getTempsLibreSoir(){
 }
 
 function buildBlocs(){
- const tachesAssignees=new Set();
-
-  // MATIN
-  const tachesMatin=IS_WORK?getTasksMatin(2,tachesAssignees):[];
-
-  // ... dans le bloc travail, tâches pro :
-  const tachesPro=ALL_TASKS.filter(t=>(t.z==='Admin'||t.z==='Marketing')&&isDue(t)&&!tachesAssignees.has(t.id))
-    .slice(0,4)
-    .map(t=>{tachesAssignees.add(t.id);return{id:'j'+t.id,n:t.n,zone:t.z,done:false};});
-
-  // APRÈS-MIDI
-  const tachesAM=getTasksBloc(IS_WORK?3:4, tachesAssignees);
-
-  // FIN DE JOURNÉE
-  const tachesSoir=getTasksBloc(tempsLibre, tachesAssignees);
+  const travail=getHeureTravail();
+  const tempsLibre=getTempsLibreSoir();
+  const blocs=[];
+  const tachesAssignees=new Set();
 
   // MATIN
   const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
-  const tachesMatin=IS_WORK?getTasksMatin(2):[]; 
+  const tachesMatin=IS_WORK?getTasksMatin(2,tachesAssignees):getTasksMatin(3,tachesAssignees);
   blocs.push({
     id:'bloc-matin',
     emoji:'🌅',
@@ -1621,12 +1610,12 @@ function buildBlocs(){
     tasks:[...routineMatin,...tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
   });
 
-  // TRAVAIL (jours de semaine)
+  // TRAVAIL
   if(IS_WORK){
-    const tachesPro=ALL_TASKS.filter(t=>t.z==='Admin'||t.z==='Marketing')
-      .filter(t=>isDue(t)&&t.workOnly!==false)
+    const tachesPro=ALL_TASKS
+      .filter(t=>(t.z==='Admin'||t.z==='Marketing')&&isDue(t)&&!tachesAssignees.has(t.id))
       .slice(0,4)
-      .map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}));
+      .map(t=>{tachesAssignees.add(t.id);return{id:'j'+t.id,n:t.n,zone:t.z,done:false};});
     blocs.push({
       id:'bloc-travail',
       emoji:'💼',
@@ -1640,10 +1629,10 @@ function buildBlocs(){
     });
   }
 
-  // APRÈS-MIDI (jours off ou samedi après-midi)
+  // APRÈS-MIDI (jours off ou samedi)
   if(!IS_WORK||(DOW===6)){
     const heureDebut=IS_WORK?travail.fin:'08:30';
-    const tachesAM=getTasksBloc(IS_WORK?3:4);
+    const tachesAM=getTasksBloc(IS_WORK?3:4,tachesAssignees);
     blocs.push({
       id:'bloc-aprem',
       emoji:'☀️',
@@ -1658,7 +1647,7 @@ function buildBlocs(){
 
   // FIN DE JOURNÉE
   const heureFinJournee=IS_WORK?addMinutes(travail.fin,20):'17:00';
-  const tachesSoir=getTasksBloc(tempsLibre,[...(IS_WORK?getTasksMatin(2):[])]);
+  const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees);
   blocs.push({
     id:'bloc-fin',
     emoji:'🏠',
