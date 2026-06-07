@@ -295,13 +295,44 @@ textarea{resize:none;min-height:80px;line-height:1.6}
 
   </div>
 
-  <!-- ONGLET TÂCHES (placeholder) -->
+  <!-- ONGLET TÂCHES -->
   <div class="pane" id="pane3">
-    <div style="text-align:center;padding:60px 20px;color:#D4537E">
-      <div style="font-size:40px;margin-bottom:12px">⚙️</div>
-      <div style="font-size:15px;font-weight:700">Gestion des tâches</div>
-      <div style="font-size:12px;margin-top:6px;color:#aaa">Bientôt disponible</div>
+
+    <!-- Filtres par zone -->
+    <div class="slbl" style="margin-top:8px">🔍 Filtrer par zone</div>
+    <div id="zone-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+
+    <!-- Liste tâches -->
+    <div id="tasks-list"></div>
+
+    <!-- Ajouter une tâche -->
+    <div class="slbl">➕ Nouvelle tâche</div>
+    <div class="card" style="padding:14px">
+      <div style="margin-bottom:8px">
+        <input type="text" id="nt-name" placeholder="Nom de la tâche..."/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <select id="nt-zone" style="padding:10px;border:1.5px solid #F4C0D1;border-radius:12px;font-size:13px;background:#fff;color:#2d2d2d;outline:none">
+          <option>Cuisine</option>
+          <option>SDB</option>
+          <option>Buanderie</option>
+          <option>Salon</option>
+          <option>Chambre</option>
+          <option>Entrée</option>
+          <option>Toilettes</option>
+          <option>Chiens</option>
+          <option>Maison</option>
+          <option>Voiture</option>
+          <option>Admin</option>
+          <option>Marketing</option>
+          <option>Perso</option>
+          <option>Bien-être</option>
+        </select>
+        <input type="number" id="nt-freq" placeholder="Fréq. (jours)" min="1" style="padding:10px;border:1.5px solid #F4C0D1;border-radius:12px;font-size:13px"/>
+      </div>
+      <button class="btn btn-rose" onclick="addCustomTask()">+ Ajouter</button>
     </div>
+
   </div>
 
 </div>
@@ -900,6 +931,107 @@ function resetLivres(){
   DB.livres={lus:[],ignores:[],enCours:null};
   sv();renderLivre();
 }
+
+// ═══════════════════════════════════════
+// ONGLET TÂCHES
+// ═══════════════════════════════════════
+let activeZone=null;
+
+function renderTasksPane(){
+  // Zones disponibles
+  const zones=[...new Set([...ALL_TASKS.map(t=>t.z),...(DB.customTasks||[]).map(t=>t.z)])].sort();
+  const zf=document.getElementById('zone-filters');
+  if(zf){
+    zf.innerHTML=`<button onclick="filterZone(null)" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${!activeZone?'#993556':'#F4C0D1'};background:${!activeZone?'#FBEAF0':'white'};color:${!activeZone?'#993556':'#aaa'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Toutes</button>`+
+    zones.map(z=>{
+      const col=ZCOL[z]||ZCOL.Perso;
+      const active=activeZone===z;
+      return`<button onclick="filterZone('${z}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${active?col.c:'#F4C0D1'};background:${active?col.bg:'white'};color:${active?col.c:'#aaa'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">${z}</button>`;
+    }).join('');
+  }
+
+  // Liste des tâches
+  const allT=[...ALL_TASKS,...(DB.customTasks||[])];
+  const filtered=activeZone?allT.filter(t=>t.z===activeZone):allT;
+
+  // Grouper par zone
+  const byZone={};
+  filtered.forEach(t=>{
+    if(!byZone[t.z]) byZone[t.z]=[];
+    byZone[t.z].push(t);
+  });
+
+  const el=document.getElementById('tasks-list');
+  if(!el) return;
+  let html='';
+
+  Object.entries(byZone).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([zone,tasks])=>{
+    const col=ZCOL[zone]||ZCOL.Perso;
+    const last=tasks.map(t=>getLastDone(t.id)).filter(Boolean).sort().reverse()[0];
+    html+=`<div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${col.c};margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span style="background:${col.bg};padding:3px 9px;border-radius:20px">${zone}</span>
+        <span style="color:#aaa;font-weight:400">${tasks.length} tâches</span>
+      </div>
+      <div class="card">`;
+
+    tasks.forEach(t=>{
+      const last=getLastDone(t.id);
+      const days=daysSince(last);
+      const overdue=t.f&&days>=t.f;
+      const isCustom=DB.customTasks&&DB.customTasks.find(x=>x.id===t.id);
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #fdf6f9">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${t.n}</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px">
+            ${t.f?`Tous les ${t.f}j`:'Ponctuel'} · 
+            ${last?`Dernière fois : ${last}`:'Jamais fait'}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${overdue?`<span style="font-size:10px;background:#FEE2E2;color:#991B1B;padding:2px 7px;border-radius:20px;font-weight:700">En retard</span>`:''}
+          ${isCustom?`<button onclick="deleteCustomTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:#F4C0D1;font-size:16px;line-height:1">×</button>`:''}
+        </div>
+      </div>`;
+    });
+
+    html+='</div></div>';
+  });
+
+  el.innerHTML=html||'<div style="text-align:center;padding:20px;color:#aaa">Aucune tâche</div>';
+}
+
+function filterZone(z){
+  activeZone=z;
+  renderTasksPane();
+}
+
+function addCustomTask(){
+  const name=document.getElementById('nt-name').value.trim();
+  const zone=document.getElementById('nt-zone').value;
+  const freq=parseInt(document.getElementById('nt-freq').value)||1;
+  if(!name){toast('⚠ Nom requis');return;}
+
+  if(!DB.customTasks) DB.customTasks=[];
+  const t={id:'custom_'+Date.now(),n:name,z:zone,f:freq,custom:true};
+  DB.customTasks.push(t);
+  ALL_TASKS.push(t);
+
+  document.getElementById('nt-name').value='';
+  document.getElementById('nt-freq').value='';
+
+  sv();renderTasksPane();
+  toast('✓ Tâche ajoutée !');
+}
+
+function deleteCustomTask(id){
+  if(!confirm('Supprimer cette tâche ?')) return;
+  DB.customTasks=(DB.customTasks||[]).filter(t=>t.id!==id);
+  const idx=ALL_TASKS.findIndex(t=>t.id===id);
+  if(idx>=0) ALL_TASKS.splice(idx,1);
+  sv();renderTasksPane();
+  toast('Supprimé');
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -1371,6 +1503,8 @@ function closeModal(id,e){
 function goPane(n){
   document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('active',i===n));
   document.querySelectorAll('.nav-item').forEach((b,i)=>b.classList.toggle('active',i===n));
+  if(n===1) renderWeek();
+  if(n===3) renderTasksPane();
 }
 
 function toast(msg){
