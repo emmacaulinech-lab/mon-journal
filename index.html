@@ -465,7 +465,53 @@ function renderDayDetail(ds){
   const isT=ds===TSTR;
 
   if(!h&&!isT){
-    el.innerHTML=`<div style="text-align:center;padding:20px;color:#D4537E;font-size:12px">Aucune donnée pour ce jour</div>`;
+    // Jour futur — montrer les tâches prévues
+    const futureDay=new Date(ds+'T12:00:00');
+    const futureDOW=futureDay.getDay();
+    const futureIsWork=[false,false,true,true,true,true,true][futureDOW];
+    const futureIsLight=[false,false,false,false,false,true,true][futureDOW];
+    const daysUntil=Math.round((futureDay-TODAY)/86400000);
+
+    if(daysUntil<0){
+      el.innerHTML=`<div style="text-align:center;padding:20px;color:#D4537E;font-size:12px">Journée non enregistrée</div>`;
+      return;
+    }
+
+    // Calculer les tâches dues ce jour-là
+    const tasksDue=ALL_TASKS.filter(t=>{
+      if(t.workOnly&&!futureIsWork) return false;
+      if(!t.f) return false;
+      const last=getLastDone(t.id);
+      const lastDate=last?new Date(last+'T12:00:00'):null;
+      if(!lastDate) return true;
+      const daysSinceLast=Math.round((futureDay-lastDate)/86400000);
+      return daysSinceLast>=t.f;
+    });
+
+    let maxT=futureIsWork?(futureIsLight?4:6):12;
+    const daily=tasksDue.filter(t=>t.f===1).slice(0,4);
+    const others=tasksDue.filter(t=>t.f>1).slice(0,maxT-daily.length);
+    const shown=[...daily,...others];
+
+    const dayFr=new Date(ds+'T12:00:00');
+    el.innerHTML=`<div class="card">
+      <div class="card-header">
+        <span class="card-title">${JOURS[dayFr.getDay()]} ${dayFr.getDate()} ${MOIS[dayFr.getMonth()]}</span>
+        <span class="card-meta">${futureIsWork?'💼 Travail':'🌸 Off'}</span>
+      </div>
+      <div style="padding:14px">
+        <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:10px">
+          📋 ${shown.length} tâches prévues
+        </div>
+        ${shown.length?shown.map(t=>{
+          const col=ZCOL[t.z]||ZCOL.Perso;
+          return`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fdf6f9">
+            <span style="font-size:13px;flex:1">${t.n}</span>
+            <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
+          </div>`;
+        }).join(''):'<div style="font-size:12px;color:#aaa">Aucune tâche prévue 🎉</div>'}
+      </div>
+    </div>`;
     return;
   }
 
