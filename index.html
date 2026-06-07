@@ -16,7 +16,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #app{display:none;padding-bottom:80px}
 
 /* TOPBAR */
-.topbar{background:linear-gradient(135deg,#FBEAF0,#F4C0D1);padding:48px 18px 14px;position:sticky;top:0;z-index:100}
+.topbar{background:linear-gradient(135deg,#FBEAF0,#F4C0D1);padding:14px 18px 10px;position:sticky;top:0;z-index:100}
 .topbar-title{font-size:20px;font-weight:700;color:#993556}
 .topbar-sub{font-size:12px;color:#D4537E;margin-top:3px;display:flex;align-items:center;gap:8px}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:#9FE1CB;display:inline-block}
@@ -25,7 +25,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* BOTTOM NAV */
-.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:white;border-top:1.5px solid #F4C0D1;display:flex;padding:10px 0 24px;z-index:100}
+.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:white;border-top:1.5px solid #F4C0D1;display:flex;padding:6px 0 16px;z-index:100}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#ccc;font-weight:600;cursor:pointer;transition:color .15s;border:none;background:none;font-family:inherit}
 .nav-item.active{color:#993556}
 .nav-emoji{font-size:22px}
@@ -1513,302 +1513,430 @@ function toggleTask(id,listId,prefix){
 // PLANNING VISUEL
 // ═══════════════════════════════════════
 let dragSrc=null;
+let dragBlocId=null;
+let touchSrcIdx=null;
+let touchBlocId=null;
+let touchClone=null;
 let currentTaskAction=null;
+let openBlocs=new Set(['bloc-matin']); // Matin ouvert par défaut
 
-const BLOC_TYPES={
-  matin:{label:'🌅 Routine matinale',col:'#FBEAF0',textCol:'#993556',border:'#F4C0D1'},
-  travail:{label:'💼 Travail',col:'#EFF6FF',textCol:'#1E40AF',border:'#BFDBFE'},
-  taches:{label:'✅ Tâches',col:'#F0FDF4',textCol:'#166534',border:'#9FE1CB'},
-  soir:{label:'🌙 Soirée libre',col:'#FDF4FF',textCol:'#7E22CE',border:'#E9D5FF'},
-  repas:{label:'🍽️ Repas',col:'#FEF3CD',textCol:'#856404',border:'#FDE68A'},
+// Durées estimées par tâche (minutes)
+const DUREES={
+  'm1':5,'m2':10,'m3':20,'m4':5,'m5':5,'m6':2,'m7':5,'m8':2,
+  'm9':20,'m10':15,'m11':15,'m12':3,'m13':2,'m14':10,'m15':5,'m16':10,
+  's1':2,'s2':5,'s3':10,'s4':10,'s5':30,'s6':15,'s7':10,'s8':3,'s9':2,'s10':20,'s11':5,
+  'repas1':30,'repas2':15,
+  'soir1':30,'soir2':60,'soir3':20,
+  'default':10
 };
 
-function buildPlanning(){
-  if(DB.planning&&DB.planning.date===TSTR) return; // Déjà généré aujourd'hui
+function getDuree(taskId){
+  const base=taskId.replace(/^[mjs]/,'');
+  return DUREES[taskId]||DUREES[base]||DUREES['default'];
+}
 
+function addMinutes(heureStr, minutes){
+  const [h,m]=heureStr.split(':').map(Number);
+  const total=h*60+m+minutes;
+  const nh=Math.floor(total/60)%24;
+  const nm=total%60;
+  return `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+}
+
+function getHeureFinBloc(tasks, heureDebut){
+  let h=heureDebut;
+  tasks.forEach(t=>{ h=addMinutes(h,getDuree(t.id)); });
+  return h;
+}
+
+function getHeureTravail(){
+  if(DB.planning&&DB.planning.heureTravail) return DB.planning.heureTravail;
+  if(DOW===2) return {debut:'10:00',fin:'19:00'};
+  if(DOW===6) return {debut:'09:00',fin:'14:00'};
+  return {debut:'09:00',fin:'19:00'};
+}
+
+function getTempsLibreSoir(){
+  if(!IS_WORK) return 999;
+  const fin=getHeureTravail().fin;
+  const [h]=fin.split(':').map(Number);
+  if(h<=14) return 5;
+  if(h<=16) return 3;
+  if(h<=17) return 2;
+  return 1;
+}
+
+function buildBlocs(){
+  const travail=getHeureTravail();
+  const tempsLibre=getTempsLibreSoir();
   const blocs=[];
 
   // MATIN
+  const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
+  const tachesMatin=IS_WORK?getTasksMatin(2):[]; 
   blocs.push({
     id:'bloc-matin',
-    type:'matin',
-    heure: IS_WORK?'07:00':'08:00',
-    tasks: getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,done:false}))
+    emoji:'🌅',
+    label:'Matin',
+    heureDebut:'07:00',
+    couleur:'#FBEAF0',
+    bordure:'#F4C0D1',
+    textCol:'#993556',
+    tasks:[...routineMatin,...tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
   });
 
-  // TÂCHES MATIN (avant travail si jour de travail)
+  // TRAVAIL (jours de semaine)
   if(IS_WORK){
-    const tachesMatin=getTasksMatin();
-    if(tachesMatin.length){
-      blocs.push({
-        id:'bloc-taches-matin',
-        type:'taches',
-        heure:'08:30',
-        tasks:tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
-      });
-    }
-  }
-
-  // TRAVAIL
-  if(IS_WORK){
-    const heureDebut=getHeureDebut();
+    const tachesPro=ALL_TASKS.filter(t=>t.z==='Admin'||t.z==='Marketing')
+      .filter(t=>isDue(t)&&t.workOnly!==false)
+      .slice(0,4)
+      .map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}));
     blocs.push({
       id:'bloc-travail',
-      type:'travail',
-      heure:heureDebut,
-      tasks:[],
-      fixed:true // Non déplaçable
+      emoji:'💼',
+      label:'Travail',
+      heureDebut:travail.debut,
+      couleur:'#EFF6FF',
+      bordure:'#BFDBFE',
+      textCol:'#1E40AF',
+      tasks:tachesPro,
+      fixed:true
     });
   }
 
-  // REPAS
+  // APRÈS-MIDI (jours off ou samedi après-midi)
+  if(!IS_WORK||(DOW===6)){
+    const heureDebut=IS_WORK?travail.fin:'08:30';
+    const tachesAM=getTasksBloc(IS_WORK?3:4);
+    blocs.push({
+      id:'bloc-aprem',
+      emoji:'☀️',
+      label:IS_WORK?'Après-midi':'Matin libre',
+      heureDebut,
+      couleur:'#FEF9C3',
+      bordure:'#FDE68A',
+      textCol:'#854F0B',
+      tasks:tachesAM.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
+    });
+  }
+
+  // FIN DE JOURNÉE
+  const heureFinJournee=IS_WORK?addMinutes(travail.fin,20):'17:00';
+  const tachesSoir=getTasksBloc(tempsLibre,[...(IS_WORK?getTasksMatin(2):[])]);
   blocs.push({
-    id:'bloc-repas',
-    type:'repas',
-    heure:IS_WORK?'20:30':'12:30',
-    tasks:[{id:'repas1',n:'🍽️ Préparer dîner',done:false},{id:'repas2',n:'🍽️ Débarrasser + vaisselle',done:false}]
+    id:'bloc-fin',
+    emoji:'🏠',
+    label:'Fin de journée',
+    heureDebut:heureFinJournee,
+    couleur:'#F0FDF4',
+    bordure:'#9FE1CB',
+    textCol:'#166534',
+    tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
   });
 
-  // TÂCHES SOIR (1 max en semaine)
-  const tachesSoir=getTasksSoir();
-  if(tachesSoir.length){
-    blocs.push({
-      id:'bloc-taches-soir',
-      type:'taches',
-      heure:IS_WORK?'19:30':'14:00',
-      tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
-    });
-  }
-
-  // SOIRÉE LIBRE
+  // REPAS
+  const heureRepas=IS_WORK?'20:30':(DOW===6?'18:30':'19:00');
   blocs.push({
-    id:'bloc-soir',
-    type:'soir',
-    heure:'21:00',
+    id:'bloc-repas',
+    emoji:'🍽️',
+    label:'Repas',
+    heureDebut:heureRepas,
+    couleur:'#FEF3CD',
+    bordure:'#FDE68A',
+    textCol:'#856404',
     tasks:[
-      {id:'soir1',n:'📱 Réseaux / vidéos',done:false},
-      {id:'soir2',n:'📺 Télé',done:false},
-      {id:'soir3',n:'📚 Lire 20 min',done:false},
+      {id:'repas1',n:'🍽️ Préparer dîner',done:false},
+      {id:'repas2',n:'🍽️ Débarrasser + vaisselle',done:false}
     ]
   });
 
-  // Trier par heure
-  blocs.sort((a,b)=>a.heure.localeCompare(b.heure));
+  // ROUTINE SOIR
+  const heureRoutineSoir=IS_WORK?'21:30':(DOW===6?'19:30':'20:30');
+  blocs.push({
+    id:'bloc-soir',
+    emoji:'🌙',
+    label:'Routine du soir',
+    heureDebut:heureRoutineSoir,
+    couleur:'#FDF4FF',
+    bordure:'#E9D5FF',
+    textCol:'#7E22CE',
+    tasks:ROUTINE_SOIR.map(t=>({id:'s'+t.id,n:t.n,zone:t.z,done:false}))
+  });
 
-  DB.planning={date:TSTR,blocs,vs:{}};
+  return blocs;
+}
+
+function getTasksMatin(max=2){
+  return ALL_TASKS.filter(t=>{
+    if(t.workOnly) return false;
+    if(!t.f||t.f>14) return false;
+    if(t.z==='Admin'||t.z==='Marketing') return false;
+    return isDue(t);
+  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
+  .slice(0,max);
+}
+
+function getTasksBloc(max=3, exclude=[]){
+  const excludeIds=exclude.map(t=>t.id);
+  return ALL_TASKS.filter(t=>{
+    if(t.workOnly) return false;
+    if(!t.f) return false;
+    if(t.z==='Admin'||t.z==='Marketing') return false;
+    if(excludeIds.includes(t.id)) return false;
+    return isDue(t);
+  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
+  .slice(0,max);
+}
+
+function buildPlanning(){
+  if(DB.planning&&DB.planning.date===TSTR) return;
+  const blocs=buildBlocs();
+  DB.planning={
+    date:TSTR,
+    blocs,
+    vs:{},
+    heureTravail:getHeureTravail()
+  };
   sv();
 }
 
-function getHeureDebut(){
-  const dow=DOW;
-  if(dow===2) return '10:00'; // mardi
-  if(dow===6) return '09:00'; // samedi
-  return '09:00'; // mer/jeu/ven
-}
-
-function getTasksMatin(){
-  // Max 2 tâches rapides avant le travail
-  const dues=ALL_TASKS.filter(t=>{
-    if(t.workOnly) return false;
-    if(!t.f||t.f>14) return false; // Pas les tâches trop rares
-    return isDue(t);
-  }).sort((a,b)=>{
-    const la=getLastDone(a.id);
-    const lb=getLastDone(b.id);
-    return daysSince(la)-daysSince(lb);
+function calcHeures(blocs){
+  // Calculer l'heure de fin de chaque tâche
+  blocs.forEach(bloc=>{
+    let h=bloc.heureDebut;
+    bloc.tasks.forEach(t=>{
+      t.heureDebut=h;
+      h=addMinutes(h,getDuree(t.id));
+    });
+    bloc.heureFin=h;
   });
-  return dues.slice(0,2);
-}
-
-function getTasksSoir(){
-  if(IS_WORK){
-    // 1 seule tâche le soir en semaine, légère
-    const dues=ALL_TASKS.filter(t=>{
-      if(t.workOnly) return false;
-      if(!t.f||t.f>7) return false;
-      return isDue(t);
-    }).sort((a,b)=>daysSince(getLastDone(a.id))-daysSince(getLastDone(b.id)));
-    return dues.slice(0,1);
-  } else {
-    // Jour off → plus de tâches
-    const dues=ALL_TASKS.filter(t=>{
-      if(!t.f) return false;
-      return isDue(t);
-    }).sort((a,b)=>daysSince(getLastDone(a.id))-daysSince(getLastDone(b.id)));
-    return dues.slice(0,6);
-  }
-}
-
-function getRoutineMatin(){
-  if(IS_WORK){
-    return ROUTINE_MATIN.filter(t=>ROUTINE_MATIN_WORK.includes(t.id));
-  }
-  return ROUTINE_MATIN;
 }
 
 function renderPlanning(){
   buildPlanning();
+  calcHeures(DB.planning.blocs);
   const container=document.getElementById('planning-container');
   if(!container) return;
   container.innerHTML='';
 
-  DB.planning.blocs.forEach((bloc,idx)=>{
-    const type=BLOC_TYPES[bloc.type]||BLOC_TYPES.taches;
+  // Bouton modifier horaires (jours de travail)
+  if(IS_WORK){
+    const trav=DB.planning.heureTravail||getHeureTravail();
+    const btn=document.createElement('div');
+    btn.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 0;margin-bottom:8px';
+    btn.innerHTML=`<span style="font-size:12px;color:#D4537E;font-weight:600">💼 Travail aujourd'hui :</span>
+      <span onclick="editHoraires()" style="background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:4px 10px;font-size:12px;font-weight:700;color:#1E40AF;cursor:pointer">${trav.debut} → ${trav.fin} ✏️</span>`;
+    container.appendChild(btn);
+  }
+
+  DB.planning.blocs.forEach((bloc,blocIdx)=>{
+    const isOpen=openBlocs.has(bloc.id);
     const done=bloc.tasks.filter(t=>DB.planning.vs&&DB.planning.vs[t.id]).length;
     const total=bloc.tasks.length;
+    const pct=total?Math.round(done/total*100):0;
 
     const el=document.createElement('div');
     el.className='plan-bloc';
-    el.dataset.idx=idx;
-    el.style.borderColor=type.border;
+    el.style.cssText=`background:white;border:1.5px solid ${bloc.bordure};border-radius:16px;margin-bottom:8px;overflow:hidden`;
+    el.dataset.blocId=bloc.id;
 
-    // Header
-    let headerHTML=`<div class="plan-bloc-header" 
-      ${!bloc.fixed?`draggable="true" 
-      ondragstart="onDragStart(event,${idx})" 
-      ondragend="onDragEnd(event)"
-      ontouchstart="onTouchStart(event,${idx})"
-      ontouchmove="onTouchMove(event)"
-      ontouchend="onTouchEnd(event,${idx})"`:''}>
-      <span class="plan-drag-handle">${bloc.fixed?'📌':'⠿'}</span>
-      <span class="plan-bloc-time" onclick="${bloc.fixed?'':`editHeure(${idx})`}">${bloc.heure}</span>
-      <span class="plan-bloc-title" style="color:${type.textCol}">${type.label}</span>
-      ${total>0?`<span class="plan-bloc-type" style="background:${type.col};color:${type.textCol}">${done}/${total}</span>`:''}
-    </div>`;
+    // Header du bloc
+    const header=document.createElement('div');
+    header.style.cssText=`display:flex;align-items:center;gap:10px;padding:12px 14px;background:${bloc.couleur};cursor:pointer`;
+    header.innerHTML=`
+      <span style="font-size:18px">${bloc.emoji}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:${bloc.textCol}">${bloc.label}</div>
+        <div style="font-size:11px;color:${bloc.textCol};opacity:.7">${bloc.heureDebut} → ${bloc.heureFin}</div>
+      </div>
+      ${total>0?`<div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;font-weight:700;color:${bloc.textCol}">${done}/${total}</span>
+        <div style="width:32px;height:4px;background:rgba(0,0,0,0.1);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${bloc.textCol};border-radius:99px"></div>
+        </div>
+      </div>`:''}
+      <span style="font-size:14px;color:${bloc.textCol};transition:transform .2s;${isOpen?'transform:rotate(180deg)':''}">▾</span>`;
+    header.onclick=()=>toggleBloc(bloc.id);
+    el.appendChild(header);
 
-    // Progress si tâches
-    let progHTML='';
-    if(total>0){
-      const pct=Math.round(done/total*100);
-      progHTML=`<div style="height:3px;background:#F4C0D1;margin:0 14px 8px;border-radius:99px;overflow:hidden">
-        <div style="height:100%;background:#993556;border-radius:99px;width:${pct}%;transition:width .3s"></div>
-      </div>`;
+    // Contenu (tâches)
+    if(isOpen){
+      const content=document.createElement('div');
+      content.id='content-'+bloc.id;
+
+      if(total===0){
+        content.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:#aaa;font-style:italic">Aucune tâche prévue 🎉</div>`;
+      } else {
+        bloc.tasks.forEach((t,taskIdx)=>{
+          const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+          const zone=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
+
+          const row=document.createElement('div');
+          row.style.cssText=`display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #fdf6f9;background:${isDone?'#f9fef9':'white'};cursor:pointer;touch-action:none`;
+          row.dataset.taskIdx=taskIdx;
+          row.dataset.blocId=bloc.id;
+
+          row.innerHTML=`
+            <span style="font-size:16px;color:#F4C0D1;cursor:grab;flex-shrink:0" 
+              draggable="true"
+              ondragstart="onDragStart(event,'${bloc.id}',${taskIdx})"
+              ondragend="onDragEnd(event)"
+              ontouchstart="onTouchStart(event,'${bloc.id}',${taskIdx})"
+              ontouchmove="onTouchMove(event)"
+              ontouchend="onTouchEnd(event,'${bloc.id}')">⠿</span>
+            <span style="font-size:11px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 7px;border-radius:8px;font-weight:700;flex-shrink:0;cursor:pointer"
+              onclick="event.stopPropagation();editHeureTache('${bloc.id}',${taskIdx})">${t.heureDebut}</span>
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${isDone?'#085041':'#F4C0D1'};background:${isDone?'#9FE1CB':'white'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#085041;flex-shrink:0">${isDone?'✓':''}</div>
+            <span style="flex:1;font-size:13px;${isDone?'text-decoration:line-through;color:#aaa':''}">${t.n}</span>
+            ${zone?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${zone.bg};color:${zone.c};flex-shrink:0">${t.zone}</span>`:''}`;
+
+          row.addEventListener('dragover',e=>{e.preventDefault();row.style.borderTop=`2px solid ${bloc.textCol}`;});
+          row.addEventListener('dragleave',()=>row.style.borderTop='');
+          row.addEventListener('drop',e=>{
+            e.preventDefault();row.style.borderTop='';
+            onDropTask(bloc.id,taskIdx);
+          });
+
+          // Tap sur la tâche (pas sur le handle)
+          row.onclick=(e)=>{
+            if(e.target.textContent==='⠿') return;
+            currentTaskAction={taskId:t.id,taskName:t.n,blocId:bloc.id,taskIdx};
+            openReportModal();
+          };
+
+          content.appendChild(row);
+        });
+      }
+      el.appendChild(content);
     }
-
-    // Tâches
-    let tasksHTML='<div class="plan-tasks">';
-    bloc.tasks.forEach(t=>{
-      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
-      const zone=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
-      tasksHTML+=`<div class="plan-task${isDone?' done':''}" onclick="handleTaskTap('${t.id}','${t.n.replace(/'/g,"\\'")}',${idx})">
-        <div class="chk">${isDone?'✓':''}</div>
-        <span class="tname">${t.n}</span>
-        ${zone?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${zone.bg};color:${zone.c}">${t.zone}</span>`:''}
-      </div>`;
-    });
-    tasksHTML+='</div>';
-
-    el.innerHTML=headerHTML+progHTML+(total>0?tasksHTML:'');
-
-    // Drag & drop desktop
-    el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag-over');});
-    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
-    el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag-over');onDrop(idx);});
 
     container.appendChild(el);
   });
 }
 
+function toggleBloc(blocId){
+  if(openBlocs.has(blocId)) openBlocs.delete(blocId);
+  else openBlocs.add(blocId);
+  renderPlanning();
+}
+
 // DRAG & DROP DESKTOP
-function onDragStart(e,idx){
-  dragSrc=idx;
+function onDragStart(e,blocId,taskIdx){
+  dragSrc=taskIdx;
+  dragBlocId=blocId;
   e.dataTransfer.effectAllowed='move';
-  setTimeout(()=>document.querySelectorAll('.plan-bloc')[idx]?.classList.add('dragging'),0);
 }
 
 function onDragEnd(e){
-  document.querySelectorAll('.plan-bloc').forEach(b=>b.classList.remove('dragging','drag-over'));
+  document.querySelectorAll('[style*="border-top"]').forEach(el=>el.style.borderTop='');
 }
 
-function onDrop(targetIdx){
-  if(dragSrc===null||dragSrc===targetIdx) return;
-  const blocs=DB.planning.blocs;
-  const [moved]=blocs.splice(dragSrc,1);
-  blocs.splice(targetIdx,0,moved);
-  dragSrc=null;
+function onDropTask(targetBlocId,targetIdx){
+  if(dragBlocId!==targetBlocId||dragSrc===null||dragSrc===targetIdx) return;
+  const bloc=DB.planning.blocs.find(b=>b.id===dragBlocId);
+  if(!bloc) return;
+  const [moved]=bloc.tasks.splice(dragSrc,1);
+  bloc.tasks.splice(targetIdx,0,moved);
+  dragSrc=null;dragBlocId=null;
+  calcHeures(DB.planning.blocs);
   sv();renderPlanning();
 }
 
-// DRAG & DROP TOUCH (iPhone)
-let touchSrcIdx=null;
-let touchClone=null;
+// DRAG & DROP TOUCH
 let touchStartY=0;
 
-function onTouchStart(e,idx){
-  if(DB.planning.blocs[idx]?.fixed) return;
-  touchSrcIdx=idx;
+function onTouchStart(e,blocId,taskIdx){
+  e.stopPropagation();
+  touchSrcIdx=taskIdx;
+  touchBlocId=blocId;
   touchStartY=e.touches[0].clientY;
-  const el=document.querySelectorAll('.plan-bloc')[idx];
-  el.classList.add('dragging');
-  // Créer un clone visuel
-  touchClone=el.cloneNode(true);
-  touchClone.style.cssText=`position:fixed;left:${el.getBoundingClientRect().left}px;top:${el.getBoundingClientRect().top}px;width:${el.offsetWidth}px;opacity:.8;z-index:999;pointer-events:none;border-radius:14px;box-shadow:0 8px 24px rgba(153,53,86,.3)`;
-  document.body.appendChild(touchClone);
 }
 
 function onTouchMove(e){
-  if(touchSrcIdx===null||!touchClone) return;
+  if(touchSrcIdx===null) return;
   e.preventDefault();
   const touch=e.touches[0];
-  touchClone.style.top=(touch.clientY-40)+'px';
   // Highlight la cible
-  document.querySelectorAll('.plan-bloc').forEach((b,i)=>{
-    const rect=b.getBoundingClientRect();
-    if(touch.clientY>rect.top&&touch.clientY<rect.bottom&&i!==touchSrcIdx){
-      b.classList.add('drag-over');
+  document.querySelectorAll('[data-task-idx]').forEach(row=>{
+    const rect=row.getBoundingClientRect();
+    if(touch.clientY>rect.top&&touch.clientY<rect.bottom&&
+       row.dataset.blocId===touchBlocId&&parseInt(row.dataset.taskIdx)!==touchSrcIdx){
+      row.style.borderTop=`2px solid #993556`;
     } else {
-      b.classList.remove('drag-over');
+      row.style.borderTop='';
     }
   });
 }
 
-function onTouchEnd(e){
+function onTouchEnd(e,blocId){
   if(touchSrcIdx===null) return;
-  if(touchClone){touchClone.remove();touchClone=null;}
-  document.querySelectorAll('.plan-bloc').forEach(b=>b.classList.remove('dragging','drag-over'));
-
   const touch=e.changedTouches[0];
   let targetIdx=null;
-  document.querySelectorAll('.plan-bloc').forEach((b,i)=>{
-    const rect=b.getBoundingClientRect();
-    if(touch.clientY>rect.top&&touch.clientY<rect.bottom) targetIdx=i;
+  document.querySelectorAll('[data-task-idx]').forEach(row=>{
+    const rect=row.getBoundingClientRect();
+    if(touch.clientY>rect.top&&touch.clientY<rect.bottom&&row.dataset.blocId===blocId){
+      targetIdx=parseInt(row.dataset.taskIdx);
+    }
+    row.style.borderTop='';
   });
 
-  if(targetIdx!==null&&targetIdx!==touchSrcIdx){
-    const blocs=DB.planning.blocs;
-    const [moved]=blocs.splice(touchSrcIdx,1);
-    blocs.splice(targetIdx,0,moved);
-    sv();
+  if(targetIdx!==null&&targetIdx!==touchSrcIdx&&blocId===touchBlocId){
+    const bloc=DB.planning.blocs.find(b=>b.id===touchBlocId);
+    if(bloc){
+      const [moved]=bloc.tasks.splice(touchSrcIdx,1);
+      bloc.tasks.splice(targetIdx,0,moved);
+      calcHeures(DB.planning.blocs);
+      sv();
+    }
   }
-  touchSrcIdx=null;
+  touchSrcIdx=null;touchBlocId=null;
   renderPlanning();
 }
 
-// MODIFIER L'HEURE
-function editHeure(idx){
-  const bloc=DB.planning.blocs[idx];
-  const nouvelleHeure=prompt('Modifier l\'heure :',bloc.heure);
+// MODIFIER HEURE D'UNE TÂCHE
+function editHeureTache(blocId,taskIdx){
+  const bloc=DB.planning.blocs.find(b=>b.id===blocId);
+  if(!bloc) return;
+  const task=bloc.tasks[taskIdx];
+  const nouvelleHeure=prompt(`Heure pour "${task.n}" :`,task.heureDebut);
   if(!nouvelleHeure) return;
   if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
-  bloc.heure=nouvelleHeure;
+  // Recalculer les heures à partir de cette tâche
+  task.heureDebut=nouvelleHeure;
+  let h=nouvelleHeure;
+  for(let i=taskIdx;i<bloc.tasks.length;i++){
+    bloc.tasks[i].heureDebut=h;
+    h=addMinutes(h,getDuree(bloc.tasks[i].id));
+  }
+  bloc.heureFin=h;
   sv();renderPlanning();
 }
 
-// TAP SUR UNE TÂCHE
-function handleTaskTap(taskId,taskName,blocIdx){
-  // Si déjà done → décocher directement
-  if(DB.planning.vs&&DB.planning.vs[taskId]){
-    DB.planning.vs[taskId]=false;
-    sv();renderPlanning();
-    return;
-  }
-  // Sinon → menu valider / reporter
-  currentTaskAction={taskId,taskName,blocIdx};
-  openReportModal();
+// MODIFIER HORAIRES TRAVAIL
+function editHoraires(){
+  const trav=DB.planning.heureTravail||getHeureTravail();
+  const debut=prompt('Heure de début :',trav.debut);
+  if(!debut) return;
+  const fin=prompt('Heure de fin :',trav.fin);
+  if(!fin) return;
+  DB.planning.heureTravail={debut,fin};
+  // Reconstruire le planning
+  DB.planning=null;
+  sv();renderPlanning();
+  toast('✓ Horaires mis à jour !');
 }
 
+// MODAL REPORTER / VALIDER
 function openReportModal(){
   const t=currentTaskAction;
+  if(!t) return;
+  // Si déjà fait → décocher
+  if(DB.planning.vs&&DB.planning.vs[t.taskId]){
+    DB.planning.vs[t.taskId]=false;
+    sv();renderPlanning();
+    currentTaskAction=null;
+    return;
+  }
   document.getElementById('report-task-name').textContent=t.taskName;
   document.getElementById('report-modal').classList.add('open');
 }
@@ -1822,7 +1950,6 @@ function validerTask(){
   if(!currentTaskAction) return;
   if(!DB.planning.vs) DB.planning.vs={};
   DB.planning.vs[currentTaskAction.taskId]=true;
-  // Marquer dans l'historique pour mettre à jour la fréquence
   const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
   if(!DB.hist) DB.hist={};
   if(!DB.hist[TSTR]) DB.hist[TSTR]={vs:{}};
@@ -1835,7 +1962,6 @@ function validerTask(){
 function reporterTask(jours){
   if(!currentTaskAction) return;
   const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
-  // Reporter = simuler que c'est fait aujourd'hui pour décaler la prochaine échéance
   const futureDate=new Date(TODAY);
   futureDate.setDate(TODAY.getDate()+(jours-1));
   const futureStr=futureDate.toISOString().split('T')[0];
@@ -1843,11 +1969,19 @@ function reporterTask(jours){
   if(!DB.hist[futureStr]) DB.hist[futureStr]={vs:{}};
   if(!DB.hist[futureStr].vs) DB.hist[futureStr].vs={};
   DB.hist[futureStr].vs['j'+realId]=true;
-  // Retirer du planning du jour
-  const bloc=DB.planning.blocs[currentTaskAction.blocIdx];
+  // Retirer du planning
+  const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
   if(bloc) bloc.tasks=bloc.tasks.filter(t=>t.id!==currentTaskAction.taskId);
+  calcHeures(DB.planning.blocs);
   sv();renderPlanning();closeReportModal();
   toast(`⏭️ Reportée de ${jours} jour${jours>1?'s':''}`);
+}
+
+function resetPlanning(){
+  if(!confirm('Regénérer le planning du jour ?')) return;
+  DB.planning=null;
+  openBlocs=new Set(['bloc-matin']);
+  sv();renderPlanning();
 }
 
 function resetPlanning(){
@@ -1865,7 +1999,6 @@ function getRoutineMatin(){
 }
 
 function renderAll(){
-  renderPlanning();
   renderPlanning();
   renderList_soir();
   renderMood();
