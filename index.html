@@ -207,15 +207,6 @@ textarea{resize:none;min-height:80px;line-height:1.6}
 
     <!-- Routine du soir -->
     <div class="soir-section" id="soir-section">
-      <div class="slbl">🌙 Routine du soir</div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Ce soir</span>
-          <span class="card-meta" id="prog-soir-lbl">0/0</span>
-        </div>
-        <div class="prog"><div class="prog-fill" id="prog-soir" style="width:0%"></div></div>
-        <div id="list-soir"></div>
-      </div>
 
       <div class="slbl">🌟 Questions du soir</div>
       <div class="qcard">
@@ -2038,7 +2029,6 @@ function getRoutineMatin(){
 
 function renderAll(){
   renderPlanning();
-  renderList_soir();
   renderMood();
   renderGrat();
   renderWeek();
