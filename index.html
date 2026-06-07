@@ -1048,7 +1048,7 @@ function renderTasksPane(){
       <div class="card">`;
 
     tasks.forEach(t=>{
-      const last=getLastDone(t.id);
+      const last=getLastDone('j'+t.id);
       const days=daysSince(last);
       const overdue=t.f&&days>=t.f;
       const isCustom=DB.customTasks&&DB.customTasks.find(x=>x.id===t.id);
@@ -1456,7 +1456,7 @@ function daysSince(dateStr){
 
 function isDue(task){
   if(!task.f) return false;
-  const last=getLastDone(task.id);
+  const last=getLastDone('j'+task.id);
   return daysSince(last)>=task.f;
 }
 
