@@ -1104,6 +1104,34 @@ function deleteCustomTask(id){
   sv();renderTasksPane();
   toast('Supprimé');
 }
+
+function renderList_soir(){
+  const el=document.getElementById('list-soir');
+  if(!el) return;
+  const tasks=ROUTINE_SOIR;
+  el.innerHTML='';
+  tasks.forEach(t=>{
+    const id='s'+t.id;
+    const done=!!(DB.vs&&DB.vs[id]);
+    const z=ZCOL[t.z]||ZCOL.Perso;
+    const row=document.createElement('div');
+    row.className='trow'+(done?' done':'');
+    row.innerHTML=`<div class="chk">${done?'✓':''}</div><span class="tname">${t.n}</span><span class="tzone" style="background:${z.bg};color:${z.c}">${t.z}</span>`;
+    row.onclick=()=>{
+      if(!DB.vs) DB.vs={};
+      DB.vs[id]=!DB.vs[id];
+      sv();renderList_soir();
+    };
+    el.appendChild(row);
+  });
+  const done=tasks.filter(t=>DB.vs&&DB.vs['s'+t.id]).length;
+  const total=tasks.length;
+  const pct=total?Math.round(done/total*100):0;
+  const prog=document.getElementById('prog-soir');
+  const lbl=document.getElementById('prog-soir-lbl');
+  if(prog) prog.style.width=pct+'%';
+  if(lbl) lbl.textContent=`${done}/${total}`;
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -1805,7 +1833,7 @@ function getRoutineMatin(){
 function renderAll(){
   renderPlanning();
   renderPlanning();
-  renderList('list-soir','s');
+  renderList_soir();
   renderMood();
   renderGrat();
   renderWeek();
