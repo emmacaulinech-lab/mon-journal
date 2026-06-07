@@ -520,10 +520,11 @@ function renderDayDetail(ds){
           <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
         </div>`;
       });
-      // Injecter dans le détail
-      const existing=document.getElementById('wk-detail');
-      if(existing) existing.innerHTML=`<div class="card"><div style="padding:14px">${htmlR}</div></div>`;
-      return;
+     // Stocker pour afficher dans le détail complet
+      window._tachesReporteesHTML=htmlR;
+    } else {
+      window._tachesReporteesHTML=null;
+    }
     }
 
     // Calculer les tâches dues ce jour-là
@@ -543,7 +544,9 @@ function renderDayDetail(ds){
     const shown=[...daily,...others];
 
     const dayFr=new Date(ds+'T12:00:00');
-    el.innerHTML=`<div class="card">
+    el.innerHTML=`
+      ${window._tachesReporteesHTML?`<div class="card" style="margin-bottom:10px"><div style="padding:14px">${window._tachesReporteesHTML}</div></div>`:''}
+      <div class="card">
       <div class="card-header">
         <span class="card-title">${JOURS[dayFr.getDay()]} ${dayFr.getDate()} ${MOIS[dayFr.getMonth()]}</span>
         <span class="card-meta">${futureIsWork?'💼 Travail':'🌸 Off'}</span>
