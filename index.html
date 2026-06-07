@@ -508,7 +508,6 @@ function renderDayDetail(ds){
       const futureHist=DB.hist&&DB.hist[ds];
       return futureHist&&futureHist.vs&&futureHist.vs['j'+t.id];
     });
-
     if(tachesReportees.length){
       let htmlR=`<div style="font-size:11px;font-weight:700;color:#993556;margin-bottom:8px">
         ⏭️ ${tachesReportees.length} tâche${tachesReportees.length>1?'s':''} reportée${tachesReportees.length>1?'s':''}
@@ -520,11 +519,9 @@ function renderDayDetail(ds){
           <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
         </div>`;
       });
-     // Stocker pour afficher dans le détail complet
       window._tachesReporteesHTML=htmlR;
     } else {
       window._tachesReporteesHTML=null;
-    }
     }
 
     // Calculer les tâches dues ce jour-là
