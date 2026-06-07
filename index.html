@@ -689,15 +689,41 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
 
 if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     const tachesAM=getTasksFuture(isWork?3:5);
+    // Calculer la vraie fin du bloc matin
+    const blocMatin=blocs.find(b=>b.id==='bloc-matin');
+    let heureDebutAM='09:30';
+    if(blocMatin){
+      let h=blocMatin.heureDebut||'07:00';
+      blocMatin.tasks.forEach(t=>{h=addMinutes(h,getDuree(t.id));});
+      heureDebutAM=h;
+    }
     blocs.push({
       id:'bloc-aprem',emoji:'☀️',label:isWork?'Après-midi':'Matin libre',
-      heureDebut:isWork?travail.fin:'08:30',
+      heureDebut:isWork?travail.fin:heureDebutAM,
       couleur:'#FEF9C3',bordure:'#FDE68A',textCol:'#854F0B',
       tasks:tachesAM.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))
     });
   }
 
-  const maxSoir=isWork?tempsLibre:2; // Max 2 tâches le soir les jours off
+  // APRÈS-MIDI (jours off uniquement)
+  if(!isWork){
+    const tachesAprem=getTasksFuture(4);
+    const blocAM=blocs.find(b=>b.id==='bloc-aprem');
+    let heureDebutAprem='12:30';
+    if(blocAM){
+      let h=blocAM.heureDebut||'09:30';
+      blocAM.tasks.forEach(t=>{h=addMinutes(h,getDuree(t.id));});
+      heureDebutAprem=h;
+    }
+    blocs.push({
+      id:'bloc-aprem2',emoji:'🌞',label:'Après-midi',
+      heureDebut:heureDebutAprem,
+      couleur:'#FEF9C3',bordure:'#FDE68A',textCol:'#854F0B',
+      tasks:tachesAprem.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))
+    });
+  }
+
+  const maxSoir=isWork?tempsLibre:2;
   const tachesSoir=getTasksFuture(maxSoir);
   blocs.push({
     id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
