@@ -636,8 +636,8 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
 
   const tempsLibre=isWork?(()=>{
     const[h]=travail.fin.split(':').map(Number);
-    if(h<=14) return 5;if(h<=16) return 3;if(h<=17) return 2;return 1;
-  })():999;
+    if(h<=14) return 4;if(h<=16) return 3;if(h<=17) return 2;return 1;
+  })():6; // Max 6 tâches les jours off
 
   const tachesAssignees=new Set();
 
@@ -687,7 +687,7 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
     });
   }
 
-  if(!isWork||(dow===6)){
+if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     const tachesAM=getTasksFuture(isWork?3:4);
     blocs.push({
       id:'bloc-aprem',emoji:'☀️',label:isWork?'Après-midi':'Matin libre',
