@@ -244,13 +244,55 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <div id="wk-detail" style="margin-top:14px"></div>
   </div>
 
-  <!-- ONGLET BIEN-ÊTRE (placeholder) -->
+  <!-- ONGLET BIEN-ÊTRE -->
   <div class="pane" id="pane2">
-    <div style="text-align:center;padding:60px 20px;color:#D4537E">
-      <div style="font-size:40px;margin-bottom:12px">✨</div>
-      <div style="font-size:15px;font-weight:700">Bien-être</div>
-      <div style="font-size:12px;margin-top:6px;color:#aaa">Bientôt disponible</div>
+
+    <!-- GAINAGE -->
+    <div class="slbl" style="margin-top:8px">💪 Séance du jour</div>
+    <div class="card" id="gainage-card">
+      <div class="card-header">
+        <span class="card-title">💪 Gainage</span>
+        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="nextGainage()">Autre séance</button>
+      </div>
+      <div id="gainage-content" style="padding:14px"></div>
     </div>
+
+    <!-- RECETTES -->
+    <div class="slbl">🍽️ Idée repas du jour</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🍽️ Ce soir</span>
+        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="nextRecette()">Autre idée</button>
+      </div>
+      <div id="recette-content" style="padding:14px"></div>
+    </div>
+
+    <!-- FRIGO -->
+    <div class="slbl">🧊 Mon frigo / placard</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Ce que j'ai</span>
+        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="checkRecettes()">🔍 Que faire ?</button>
+      </div>
+      <div id="frigo-content" style="padding:14px">
+        <div id="frigo-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="frigo-inp" placeholder="Ajouter un ingrédient..." style="flex:1;font-size:13px;padding:9px 12px"/>
+          <button class="btn btn-light" style="padding:9px 12px;font-size:13px" onclick="addFrigo()">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVRE -->
+    <div class="slbl">📚 Lecture du moment</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📚 Suggestion</span>
+        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="nextLivre()">Autre livre</button>
+      </div>
+      <div id="livre-content" style="padding:14px"></div>
+    </div>
+
   </div>
 
   <!-- ONGLET TÂCHES (placeholder) -->
@@ -432,6 +474,431 @@ function renderDayDetail(ds){
 
   html+=`</div></div>`;
   el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// GAINAGE — SÉANCES
+// ═══════════════════════════════════════
+const SEANCES_GAINAGE=[
+  {niveau:'Débutant',duree:'10 min',exercices:[
+    {n:'Planche',duree:'30s',repos:'15s',series:3},
+    {n:'Gainage latéral droit',duree:'20s',repos:'10s',series:2},
+    {n:'Gainage latéral gauche',duree:'20s',repos:'10s',series:2},
+    {n:'Pont fessier',duree:'30s',repos:'15s',series:3},
+  ]},
+  {niveau:'Débutant',duree:'12 min',exercices:[
+    {n:'Planche',duree:'40s',repos:'20s',series:3},
+    {n:'Superman',duree:'30s',repos:'15s',series:3},
+    {n:'Crunches',duree:'20 reps',repos:'20s',series:3},
+    {n:'Pont fessier',duree:'40s',repos:'15s',series:3},
+  ]},
+  {niveau:'Intermédiaire',duree:'15 min',exercices:[
+    {n:'Planche',duree:'45s',repos:'15s',series:4},
+    {n:'Gainage latéral',duree:'30s/côté',repos:'15s',series:3},
+    {n:'Mountain climbers',duree:'30s',repos:'20s',series:3},
+    {n:'Pont fessier pied levé',duree:'20s/côté',repos:'15s',series:3},
+  ]},
+  {niveau:'Intermédiaire',duree:'15 min',exercices:[
+    {n:'Planche dynamique',duree:'40s',repos:'20s',series:3},
+    {n:'Bird dog',duree:'30s',repos:'15s',series:3},
+    {n:'Dead bug',duree:'30s',repos:'15s',series:3},
+    {n:'Crunches obliques',duree:'20 reps/côté',repos:'20s',series:3},
+  ]},
+  {niveau:'Avancé',duree:'20 min',exercices:[
+    {n:'Planche',duree:'60s',repos:'15s',series:4},
+    {n:'Gainage latéral étoile',duree:'30s/côté',repos:'15s',series:3},
+    {n:'Mountain climbers rapides',duree:'45s',repos:'20s',series:4},
+    {n:'Superman + bras tendus',duree:'40s',repos:'15s',series:3},
+    {n:'Pont fessier monopodale',duree:'30s/côté',repos:'15s',series:3},
+  ]},
+  {niveau:'Avancé',duree:'20 min',exercices:[
+    {n:'Planche + rotation',duree:'40s',repos:'20s',series:4},
+    {n:'Hollow body hold',duree:'30s',repos:'20s',series:4},
+    {n:'Dragon flag (assisté)',duree:'20s',repos:'30s',series:3},
+    {n:'Windshield wipers',duree:'20 reps',repos:'20s',series:3},
+  ]},
+  {niveau:'Express 10 min',duree:'10 min',exercices:[
+    {n:'Planche',duree:'30s',repos:'10s',series:3},
+    {n:'Mountain climbers',duree:'20s',repos:'10s',series:3},
+    {n:'Pont fessier',duree:'30s',repos:'10s',series:3},
+  ]},
+  {niveau:'Doux',duree:'12 min',exercices:[
+    {n:'Respiration abdominale',duree:'1 min',repos:'0',series:1},
+    {n:'Planche sur genoux',duree:'30s',repos:'15s',series:3},
+    {n:'Pont fessier lent',duree:'40s',repos:'20s',series:3},
+    {n:'Étirement du chat',duree:'30s',repos:'10s',series:3},
+  ]},
+];
+
+let gainageIdx=null;
+
+function getGainageIdx(){
+  if(gainageIdx!==null) return gainageIdx;
+  // Choisir selon le jour et l'historique
+  const saved=localStorage.getItem('gainage_'+TSTR);
+  if(saved){gainageIdx=parseInt(saved);return gainageIdx;}
+  gainageIdx=Math.floor(Math.random()*SEANCES_GAINAGE.length);
+  localStorage.setItem('gainage_'+TSTR,gainageIdx);
+  return gainageIdx;
+}
+
+function nextGainage(){
+  gainageIdx=(getGainageIdx()+1)%SEANCES_GAINAGE.length;
+  localStorage.setItem('gainage_'+TSTR,gainageIdx);
+  renderGainage();
+}
+
+function renderGainage(){
+  const s=SEANCES_GAINAGE[getGainageIdx()];
+  const niv={
+    'Débutant':'background:#E1F5EE;color:#085041',
+    'Intermédiaire':'background:#DBEAFE;color:#1E40AF',
+    'Avancé':'background:#FEE2E2;color:#991B1B',
+    'Express 10 min':'background:#FEF3CD;color:#856404',
+    'Doux':'background:#F3E8FF;color:#6B21A8',
+  }[s.niveau]||'background:#F3F4F6;color:#374151';
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:12px;padding:4px 10px;border-radius:20px;font-weight:700;${niv}">${s.niveau}</span>
+    <span style="font-size:12px;color:#D4537E;font-weight:600">⏱ ${s.duree}</span>
+  </div>`;
+
+  s.exercices.forEach(ex=>{
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #fdf6f9">
+      <span style="font-size:13px;font-weight:600">${ex.n}</span>
+      <span style="font-size:11px;color:#993556;background:#FBEAF0;padding:3px 8px;border-radius:20px">${ex.duree} × ${ex.series}</span>
+    </div>`;
+  });
+
+  document.getElementById('gainage-content').innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// RECETTES
+// ═══════════════════════════════════════
+const RECETTES=[
+  // SOIR SEMAINE
+  {n:'Poulet sauté aux courgettes + riz',type:'semaine',temps:25,
+   ingredients:['escalopes de poulet','courgettes','riz','huile d\'olive','ail','herbes de Provence','sel','poivre']},
+  {n:'Burger bowl steak haché + quinoa',type:'semaine',temps:20,
+   ingredients:['steak haché','quinoa','tomates cerises','cornichons','moutarde','salade verte','sel','poivre']},
+  {n:'Émincé de bœuf aux poivrons + riz',type:'semaine',temps:25,
+   ingredients:['bœuf émincé','poivrons rouges','poivrons verts','riz','huile d\'olive','ail','sel','poivre']},
+  {n:'Veau à la moutarde + haricots verts + pâtes',type:'semaine',temps:25,
+   ingredients:['escalopes de veau','moutarde','haricots verts','pâtes','crème de soja','sel','poivre']},
+  {n:'Dinde aux légumes du soleil + quinoa',type:'semaine',temps:25,
+   ingredients:['escalopes de dinde','courgettes','poivrons','aubergines','tomates','quinoa','huile d\'olive','herbes de Provence']},
+  {n:'Poulet citron-ail + patates douces rôties',type:'semaine',temps:30,
+   ingredients:['escalopes de poulet','patates douces','citron','ail','huile d\'olive','thym','sel','poivre']},
+  {n:'Semoule courgettes poulet',type:'semaine',temps:20,
+   ingredients:['escalopes de poulet','courgettes','semoule','bouillon de légumes','huile d\'olive','coriandre','sel','poivre']},
+  {n:'Pavé de saumon + riz + légumes verts',type:'semaine',temps:20,
+   ingredients:['pavé de saumon','riz','haricots verts','beurre végétal','citron','aneth','sel','poivre']},
+  {n:'Dos de cabillaud + purée de patates douces',type:'semaine',temps:25,
+   ingredients:['dos de cabillaud','patates douces','huile d\'olive','ail','persil','sel','poivre']},
+  {n:'Saumon en papillote courgettes + quinoa',type:'semaine',temps:25,
+   ingredients:['pavé de saumon','courgettes','quinoa','citron','aneth','huile d\'olive','sel','poivre']},
+
+  // WEEKEND
+  {n:'Gratin de chou-fleur',type:'weekend',temps:45,
+   ingredients:['chou-fleur','crème de soja','gruyère râpé','muscade','sel','poivre','beurre végétal']},
+  {n:'Lasagnes aux aubergines',type:'weekend',temps:60,
+   ingredients:['aubergines','plaques de lasagnes','tomates concassées','oignon','ail','basilic','sel','poivre']},
+  {n:'Veau aux olives',type:'weekend',temps:60,
+   ingredients:['veau','olives vertes','olives noires','tomates','oignon','ail','thym','huile d\'olive','sel','poivre']},
+  {n:'Bœuf bourguignon',type:'weekend',temps:120,
+   ingredients:['bœuf bourguignon','carottes','oignons','champignons','bouquet garni','vin rouge','farine','sel','poivre']},
+  {n:'Poulet basquaise',type:'weekend',temps:60,
+   ingredients:['poulet','poivrons rouges','poivrons verts','tomates','oignon','ail','piment d\'Espelette','huile d\'olive']},
+  {n:'Gratin dauphinois + viande grillée',type:'weekend',temps:60,
+   ingredients:['pommes de terre','crème de soja','ail','muscade','sel','poivre','viande au choix']},
+  {n:'Blanquette de veau',type:'weekend',temps:90,
+   ingredients:['veau','carottes','oignons','bouquet garni','crème de soja','farine','beurre végétal','sel','poivre']},
+  {n:'Tajine de poulet aux citrons confits + semoule',type:'weekend',temps:60,
+   ingredients:['poulet','citrons confits','olives','oignon','ail','gingembre','cumin','coriandre','semoule']},
+  {n:'Bœuf aux carottes mijoté',type:'weekend',temps:90,
+   ingredients:['bœuf','carottes','oignon','ail','bouquet garni','tomates concassées','sel','poivre']},
+  {n:'Poulet rôti dominical + légumes',type:'weekend',temps:75,
+   ingredients:['poulet entier','pommes de terre','carottes','oignon','ail','thym','romarin','huile d\'olive']},
+
+  // ÉTÉ / LÉGER
+  {n:'Salade césar au poulet grillé',type:'ete',temps:20,
+   ingredients:['escalope de poulet','salade romaine','croûtons','parmesan','sauce césar sans anchois','citron']},
+  {n:'Salade de quinoa tomates concombre',type:'ete',temps:15,
+   ingredients:['quinoa','tomates cerises','concombre','oignon rouge','basilic','huile d\'olive','citron','sel','poivre']},
+  {n:'Salade de pâtes poulet tomates',type:'ete',temps:20,
+   ingredients:['pâtes','escalope de poulet','tomates cerises','roquette','huile d\'olive','basilic','sel','poivre']},
+  {n:'Taboulé poulet',type:'ete',temps:20,
+   ingredients:['semoule','escalope de poulet','tomates','concombre','menthe','persil','citron','huile d\'olive']},
+  {n:'Wrap poulet crudités',type:'ete',temps:15,
+   ingredients:['tortillas','escalope de poulet','salade','tomates','concombre','moutarde','sel','poivre']},
+  {n:'Velouté de courgettes froid',type:'ete',temps:20,
+   ingredients:['courgettes','bouillon de légumes','ail','basilic','huile d\'olive','sel','poivre']},
+  {n:'Filet de sole meunière + haricots verts + riz',type:'semaine',temps:20,
+   ingredients:['filets de sole','haricots verts','riz','beurre végétal','citron','persil','sel','poivre']},
+];
+
+let recetteIdx=null;
+let frigItems=[];
+
+function getRecetteIdx(){
+  if(recetteIdx!==null) return recetteIdx;
+  const saved=localStorage.getItem('recette_'+TSTR);
+  if(saved){recetteIdx=parseInt(saved);return recetteIdx;}
+  // Choisir selon le jour
+  const isWeekend=[0,6].includes(DOW);
+  const isSummer=[5,6,7,8].includes(TODAY.getMonth());
+  let candidates=RECETTES.filter(r=>{
+    if(isWeekend) return r.type==='weekend'||r.type==='semaine';
+    if(isSummer) return r.type==='ete'||r.type==='semaine';
+    return r.type==='semaine';
+  });
+  recetteIdx=Math.floor(Math.random()*candidates.length);
+  localStorage.setItem('recette_'+TSTR,recetteIdx);
+  return recetteIdx;
+}
+
+function nextRecette(){
+  recetteIdx=((recetteIdx||0)+1)%RECETTES.length;
+  localStorage.setItem('recette_'+TSTR,recetteIdx);
+  renderRecette();
+}
+
+function renderRecette(){
+  const r=RECETTES[getRecetteIdx()];
+  const typeCol={
+    semaine:'background:#E1F5EE;color:#085041',
+    weekend:'background:#FAEEDA;color:#854F0B',
+    ete:'background:#DBEAFE;color:#1E40AF'
+  }[r.type];
+  const typeLabel={semaine:'Soir semaine',weekend:'Weekend',ete:'Été / léger'}[r.type];
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:15px;font-weight:700;color:#2d2d2d">${r.n}</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <span style="font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;${typeCol}">${typeLabel}</span>
+    <span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#FBEAF0;color:#993556;font-weight:700">⏱ ${r.temps} min</span>
+  </div>
+  <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:6px">Ingrédients (2 personnes)</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px">
+    ${r.ingredients.map(i=>`<span style="background:#fdf6f9;border:1px solid #F4C0D1;border-radius:20px;padding:3px 9px;font-size:11px;color:#2d2d2d">${i}</span>`).join('')}
+  </div>`;
+
+  document.getElementById('recette-content').innerHTML=html;
+}
+
+// FRIGO
+function loadFrigo(){
+  const saved=localStorage.getItem('frigo');
+  if(saved) frigItems=JSON.parse(saved);
+  renderFrigo();
+}
+
+function saveFrigo(){
+  localStorage.setItem('frigo',JSON.stringify(frigItems));
+}
+
+function addFrigo(){
+  const inp=document.getElementById('frigo-inp');
+  const v=inp.value.trim().toLowerCase();
+  if(!v) return;
+  if(!frigItems.includes(v)) frigItems.push(v);
+  saveFrigo();renderFrigo();
+  inp.value='';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const inp=document.getElementById('frigo-inp');
+  if(inp) inp.addEventListener('keydown',e=>{if(e.key==='Enter')addFrigo();});
+});
+
+function removeFrigo(item){
+  frigItems=frigItems.filter(i=>i!==item);
+  saveFrigo();renderFrigo();
+}
+
+function renderFrigo(){
+  const el=document.getElementById('frigo-list');
+  if(!el) return;
+  if(!frigItems.length){
+    el.innerHTML='<div style="font-size:12px;color:#aaa;font-style:italic">Ajoute ce que tu as dans ton frigo...</div>';
+    return;
+  }
+  el.innerHTML=frigItems.map(i=>`
+    <div style="display:inline-flex;align-items:center;gap:5px;background:#FBEAF0;border:1px solid #F4C0D1;border-radius:20px;padding:4px 10px">
+      <span style="font-size:12px">${i}</span>
+      <button onclick="removeFrigo('${i}')" style="background:none;border:none;cursor:pointer;color:#993556;font-size:14px;line-height:1;padding:0">×</button>
+    </div>`).join('');
+}
+
+function checkRecettes(){
+  if(!frigItems.length){toast('Ajoute d\'abord des ingrédients !');return;}
+
+  const scores=RECETTES.map(r=>{
+    const match=r.ingredients.filter(ing=>
+      frigItems.some(f=>ing.toLowerCase().includes(f)||f.includes(ing.toLowerCase().split(' ')[0]))
+    ).length;
+    return{r,match,pct:Math.round(match/r.ingredients.length*100)};
+  }).filter(x=>x.match>0).sort((a,b)=>b.pct-a.pct).slice(0,5);
+
+  if(!scores.length){toast('Aucune recette trouvée avec ces ingrédients');return;}
+
+  const el=document.getElementById('frigo-content');
+  let html=`<div style="font-size:12px;font-weight:700;color:#993556;margin-bottom:10px">🍽️ Recettes possibles avec ton frigo :</div>`;
+
+  scores.forEach(({r,match,pct})=>{
+    const manquants=r.ingredients.filter(ing=>
+      !frigItems.some(f=>ing.toLowerCase().includes(f)||f.includes(ing.toLowerCase().split(' ')[0]))
+    );
+    html+=`<div style="background:white;border:1px solid #F4C0D1;border-radius:12px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">${r.n}</span>
+        <span style="font-size:11px;background:${pct>=80?'#E1F5EE':pct>=50?'#FAEEDA':'#FEE2E2'};color:${pct>=80?'#085041':pct>=50?'#854F0B':'#991B1B'};padding:3px 8px;border-radius:20px;font-weight:700">${pct}%</span>
+      </div>
+      ${manquants.length?`<div style="font-size:11px;color:#D4537E">Il manque : ${manquants.join(', ')}</div>`:'<div style="font-size:11px;color:#085041">✅ Tu as tout !</div>'}
+    </div>`;
+  });
+
+  html+=`<button class="btn btn-light" style="width:100%;margin-top:4px" onclick="loadFrigo()">← Retour</button>`;
+  el.innerHTML=html;
+}
+
+// ═══════════════════════════════════════
+// LIVRES
+// ═══════════════════════════════════════
+const LIVRES=[
+  // Thrillers psychologiques
+  {t:'La fille du train',a:'Paula Hawkins',genre:'Thriller'},
+  {t:'Gone Girl',a:'Gillian Flynn',genre:'Thriller'},
+  {t:'Big Little Lies',a:'Liane Moriarty',genre:'Thriller'},
+  {t:'La femme à la fenêtre',a:'A.J. Finn',genre:'Thriller'},
+  {t:'Derrière les portes',a:'B.A. Paris',genre:'Thriller'},
+  {t:'The Silent Patient',a:'Alex Michaelides',genre:'Thriller'},
+  {t:'Verity',a:'Colleen Hoover',genre:'Thriller'},
+  {t:'Tant que tu es là',a:'B.A. Paris',genre:'Thriller'},
+  {t:'Un parfait inconnu',a:'Shari Lapena',genre:'Thriller'},
+  {t:'La fille sauvage',a:'Karin Slaughter',genre:'Thriller'},
+  {t:'La Nanny',a:'Gilly Macmillan',genre:'Thriller'},
+  {t:'La Fille avant',a:'JP Delaney',genre:'Thriller'},
+  {t:'La Femme d\'avant',a:'JP Delaney',genre:'Thriller'},
+  {t:'L\'Invitation',a:'JP Delaney',genre:'Thriller'},
+  {t:'L\'Inconnue du lac',a:'Mary Kubica',genre:'Thriller'},
+  {t:'La Bonne',a:'Freida McFadden',genre:'Thriller'},
+  {t:'La Colocataire',a:'Freida McFadden',genre:'Thriller'},
+  {t:'La Baby-sitter',a:'Freida McFadden',genre:'Thriller'},
+  {t:'Le Mari',a:'Freida McFadden',genre:'Thriller'},
+  {t:'La Secrétaire',a:'Freida McFadden',genre:'Thriller'},
+  {t:'La Maison des secrets',a:'Kate Morton',genre:'Thriller'},
+  {t:'La Prisonnière',a:'Kate Morton',genre:'Thriller'},
+  {t:'Les Heures lointaines',a:'Kate Morton',genre:'Thriller'},
+  // Romance
+  {t:'Icebreaker',a:'Hannah Grace',genre:'Romance'},
+  {t:'People We Meet on Vacation',a:'Emily Henry',genre:'Romance'},
+  {t:'Beach Read',a:'Emily Henry',genre:'Romance'},
+  {t:'Book Lovers',a:'Emily Henry',genre:'Romance'},
+  {t:'The Love Hypothesis',a:'Ali Hazelwood',genre:'Romance'},
+  {t:'Twisted Games',a:'Ana Huang',genre:'Romance'},
+  {t:'Twisted Lies',a:'Ana Huang',genre:'Romance'},
+  {t:'Twisted Emotions',a:'Ana Huang',genre:'Romance'},
+  {t:'King of Wrath',a:'Ana Huang',genre:'Romance'},
+  {t:'King of Pride',a:'Ana Huang',genre:'Romance'},
+  {t:'King of Greed',a:'Ana Huang',genre:'Romance'},
+  {t:'From Blood and Ash',a:'Jennifer L. Armentrout',genre:'Fantasy Romance'},
+  {t:'A Court of Thorns and Roses',a:'Sarah J. Maas',genre:'Fantasy Romance'},
+  {t:'Fourth Wing',a:'Rebecca Yarros',genre:'Fantasy Romance'},
+  {t:'Iron Flame',a:'Rebecca Yarros',genre:'Fantasy Romance'},
+  {t:'The Serpent and the Wings of Night',a:'Carissa Broadbent',genre:'Fantasy Romance'},
+  {t:'Haunting Adeline',a:'H.D. Carlton',genre:'Thriller Romance'},
+  {t:'Stalking Jack the Ripper',a:'Kerri Maniscalco',genre:'Thriller'},
+];
+
+function renderLivre(){
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+
+  const dispo=LIVRES.filter(l=>
+    !DB.livres.lus.includes(l.t)&&
+    !DB.livres.ignores.includes(l.t)
+  );
+
+  if(!dispo.length){
+    document.getElementById('livre-content').innerHTML=`
+      <div style="text-align:center;padding:20px;color:#D4537E">
+        🎉 Tu as lu ou ignoré tous les livres !
+        <button class="btn btn-light" style="margin-top:10px;width:100%" onclick="resetLivres()">Recommencer</button>
+      </div>`;
+    return;
+  }
+
+  // Livre en cours ou suggestion du jour
+  let livre;
+  if(DB.livres.enCours){
+    livre=LIVRES.find(l=>l.t===DB.livres.enCours)||dispo[0];
+  } else {
+    const savedIdx=localStorage.getItem('livre_'+TSTR);
+    const idx=savedIdx?parseInt(savedIdx):Math.floor(Math.random()*dispo.length);
+    localStorage.setItem('livre_'+TSTR,idx%dispo.length);
+    livre=dispo[idx%dispo.length];
+  }
+
+  const genreCol={
+    Thriller:'background:#FEE2E2;color:#991B1B',
+    Romance:'background:#FDF2F8;color:#9D174D',
+    'Fantasy Romance':'background:#EDE9FE;color:#5B21B6',
+    'Thriller Romance':'background:#FEF3CD;color:#856404',
+  }[livre.genre]||'background:#F3F4F6;color:#374151';
+
+  const enCours=DB.livres.enCours===livre.t;
+
+  document.getElementById('livre-content').innerHTML=`
+    <div style="margin-bottom:12px">
+      <div style="font-size:16px;font-weight:700;color:#2d2d2d;margin-bottom:4px">${livre.t}</div>
+      <div style="font-size:13px;color:#D4537E;margin-bottom:8px">${livre.a}</div>
+      <span style="font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;${genreCol}">${livre.genre}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      <button class="btn ${enCours?'btn-rose':'btn-light'}" onclick="toggleEnCours('${livre.t.replace(/'/g,"\\'")}')">
+        ${enCours?'📖 En cours de lecture':'📖 Je lis ce livre'}
+      </button>
+      <button class="btn btn-light" onclick="marquerLu('${livre.t.replace(/'/g,"\\'")}')">✅ Je l\'ai lu</button>
+      <button class="btn btn-light" onclick="ignorerLivre('${livre.t.replace(/'/g,"\\'")}')">🚫 Pas intéressée</button>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:#aaa">${dispo.length} livres disponibles · ${DB.livres.lus.length} lus</div>`;
+}
+
+function nextLivre(){
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+  DB.livres.enCours=null;
+  const dispo=LIVRES.filter(l=>!DB.livres.lus.includes(l.t)&&!DB.livres.ignores.includes(l.t));
+  const newIdx=Math.floor(Math.random()*dispo.length);
+  localStorage.setItem('livre_'+TSTR,newIdx);
+  sv();renderLivre();
+}
+
+function toggleEnCours(titre){
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+  DB.livres.enCours=DB.livres.enCours===titre?null:titre;
+  sv();renderLivre();
+}
+
+function marquerLu(titre){
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+  if(!DB.livres.lus.includes(titre)) DB.livres.lus.push(titre);
+  if(DB.livres.enCours===titre) DB.livres.enCours=null;
+  sv();renderLivre();toast('✅ Livre marqué comme lu !');
+}
+
+function ignorerLivre(titre){
+  if(!DB.livres) DB.livres={lus:[],ignores:[],enCours:null};
+  if(!DB.livres.ignores.includes(titre)) DB.livres.ignores.push(titre);
+  if(DB.livres.enCours===titre) DB.livres.enCours=null;
+  sv();renderLivre();nextLivre();
+}
+
+function resetLivres(){
+  if(!confirm('Réinitialiser la liste de livres ?')) return;
+  DB.livres={lus:[],ignores:[],enCours:null};
+  sv();renderLivre();
 }
   
 function showLogin(){
@@ -820,6 +1287,10 @@ function renderAll(){
   renderMood();
   renderGrat();
   renderWeek();
+  renderGainage();
+  renderRecette();
+  loadFrigo();
+  renderLivre();
   if(DB.intention) document.getElementById('int-inp').value=DB.intention;
   if(DB.q1) document.getElementById('q1').value=DB.q1;
   if(DB.q2) document.getElementById('q2').value=DB.q2;
