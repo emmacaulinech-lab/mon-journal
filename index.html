@@ -1132,6 +1132,40 @@ function renderList_soir(){
   if(prog) prog.style.width=pct+'%';
   if(lbl) lbl.textContent=`${done}/${total}`;
 }
+
+function initLastDates(){
+  if(DB.lastDatesInit) return;
+  
+  const today=new Date(TSTR+'T12:00:00');
+  
+  ALL_TASKS.forEach(t=>{
+    if(getLastDone(t.id)) return;
+    if(!t.f) return;
+    
+    // Décalage stable basé sur l'ID
+    const hash=t.id.split('').reduce((s,c)=>s+c.charCodeAt(0),0);
+    
+    let daysAgo;
+    if(t.f===1) daysAgo=1;
+    else if(t.f===2) daysAgo=1+(hash%2);
+    else if(t.f<=7) daysAgo=1+(hash%(t.f-1));
+    else if(t.f<=14) daysAgo=2+(hash%(t.f-2));
+    else if(t.f<=30) daysAgo=5+(hash%(t.f-5));
+    else daysAgo=10+(hash%(t.f-10));
+    
+    const lastDate=new Date(today);
+    lastDate.setDate(today.getDate()-daysAgo);
+    const lastStr=lastDate.toISOString().split('T')[0];
+    
+    if(!DB.hist) DB.hist={};
+    if(!DB.hist[lastStr]) DB.hist[lastStr]={vs:{}};
+    if(!DB.hist[lastStr].vs) DB.hist[lastStr].vs={};
+    DB.hist[lastStr].vs['j'+t.id]=true;
+  });
+  
+  DB.lastDatesInit=true;
+  sv();
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -1970,6 +2004,7 @@ function updateTopbar(){
 // ═══════════════════════════════════════
 async function init(){
   await loadDB();
+  initLastDates();
   updateTopbar();
   renderAll();
   document.getElementById('loading').style.display='none';
