@@ -2286,7 +2286,9 @@ function renderPlanning(){
           content.appendChild(row);
         });
       }
-      if(isOpen&&bloc.id!=='bloc-travail'&&bloc.id!=='bloc-repas'){
+      el.appendChild(content);
+    }
+    if(isOpen&&bloc.id!=='bloc-travail'&&bloc.id!=='bloc-repas'){
       const addBtn=document.createElement('div');
       addBtn.style.cssText='padding:8px 14px;border-top:1px solid #fdf6f9';
       addBtn.innerHTML='<button onclick="openAddTache(\''+bloc.id+'\')" style="background:none;border:1.5px dashed #F4C0D1;border-radius:10px;width:100%;padding:8px;font-size:12px;color:#D4537E;cursor:pointer;font-family:inherit;font-weight:600">+ Ajouter une tâche</button>';
