@@ -602,7 +602,7 @@ function renderDayDetail(ds){
         else if(isHebdoPlus) badge=`<span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:2px 6px;border-radius:20px;font-weight:700;flex-shrink:0">🔄 ${task.f}j</span>`;
 
         html+=`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #fdf6f9;background:${isDoneT?'#f9fef9':'white'}">
-          <span style="font-size:10px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 6px;border-radius:6px;font-weight:700;flex-shrink:0">${t.heureDebut||''}</span>
+          <span onclick="${isFuture?`editHeureTacheDetail('${ds}','${bloc.id}',${tidx})`:''}" style="font-size:10px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 6px;border-radius:6px;font-weight:700;flex-shrink:0;${isFuture?'cursor:pointer;text-decoration:underline dotted':''}">${t.heureDebut||''}</span>
           <span style="flex:1;font-size:12px;${isDoneT?'text-decoration:line-through;color:#aaa':''}">${t.n}</span>
           ${badge}
           ${col?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c};flex-shrink:0">${t.zone}</span>`:''}
@@ -1511,6 +1511,26 @@ function finirLivre(){
   DB.livreCours=null;
   sv();renderLivreCours();renderLivre();
   toast('🎉 Félicitations, livre terminé !');
+}
+
+function editHeureTacheDetail(ds,blocId,taskIdx){
+  if(!DB.plannings||!DB.plannings[ds]) return;
+  const bloc=DB.plannings[ds].blocs.find(b=>b.id===blocId);
+  if(!bloc) return;
+  const task=bloc.tasks[taskIdx];
+  const nouvelleHeure=prompt(`Heure pour "${task.n}" :`,task.heureDebut||'07:00');
+  if(!nouvelleHeure) return;
+  if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
+
+  // Recalculer les heures à partir de cette tâche
+  let h=nouvelleHeure;
+  for(let i=taskIdx;i<bloc.tasks.length;i++){
+    bloc.tasks[i].heureDebut=h;
+    h=addMinutes(h,getDuree(bloc.tasks[i].id));
+  }
+  bloc.heureFin=h;
+  sv();renderDayDetail(ds);
+  toast('✓ Heure mise à jour !');
 }
   
 function showLogin(){
