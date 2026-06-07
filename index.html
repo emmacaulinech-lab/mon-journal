@@ -1591,9 +1591,21 @@ function getTempsLibreSoir(){
 }
 
 function buildBlocs(){
-  const travail=getHeureTravail();
-  const tempsLibre=getTempsLibreSoir();
-  const blocs=[];
+ const tachesAssignees=new Set();
+
+  // MATIN
+  const tachesMatin=IS_WORK?getTasksMatin(2,tachesAssignees):[];
+
+  // ... dans le bloc travail, tâches pro :
+  const tachesPro=ALL_TASKS.filter(t=>(t.z==='Admin'||t.z==='Marketing')&&isDue(t)&&!tachesAssignees.has(t.id))
+    .slice(0,4)
+    .map(t=>{tachesAssignees.add(t.id);return{id:'j'+t.id,n:t.n,zone:t.z,done:false};});
+
+  // APRÈS-MIDI
+  const tachesAM=getTasksBloc(IS_WORK?3:4, tachesAssignees);
+
+  // FIN DE JOURNÉE
+  const tachesSoir=getTasksBloc(tempsLibre, tachesAssignees);
 
   // MATIN
   const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
@@ -1690,33 +1702,41 @@ function buildBlocs(){
   return blocs;
 }
 
-function getTasksMatin(max=2){
-  return ALL_TASKS.filter(t=>{
+function getTasksMatin(max=2, exclude=new Set()){
+  const result=ALL_TASKS.filter(t=>{
     if(t.workOnly) return false;
     if(!t.f||t.f>14) return false;
     if(t.z==='Admin'||t.z==='Marketing') return false;
+    if(exclude.has(t.id)) return false;
     return isDue(t);
   }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
   .slice(0,max);
+  result.forEach(t=>exclude.add(t.id));
+  return result;
 }
 
-function getTasksBloc(max=3, exclude=[]){
-  const excludeIds=exclude.map(t=>t.id);
-  return ALL_TASKS.filter(t=>{
+function getTasksBloc(max=3, exclude=new Set()){
+  const result=ALL_TASKS.filter(t=>{
     if(t.workOnly) return false;
     if(!t.f) return false;
     if(t.z==='Admin'||t.z==='Marketing') return false;
-    if(excludeIds.includes(t.id)) return false;
+    if(exclude.has(t.id)) return false;
     return isDue(t);
   }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
   .slice(0,max);
+  result.forEach(t=>exclude.add(t.id));
+  return result;
 }
 
 function buildPlanning(){
   // Forcer la reconstruction si les blocs n'ont pas d'emoji
   if(DB.planning&&DB.planning.date===TSTR){
-    const hasEmoji=DB.planning.blocs&&DB.planning.blocs[0]&&DB.planning.blocs[0].emoji;
-    if(hasEmoji) return;
+    const hasEmoji=DB.planning&&DB.planning.blocs&&DB.planning.blocs[0]&&DB.planning.blocs[0].emoji;
+  const hasDoublons=DB.planning&&DB.planning.blocs&&(()=>{
+    const ids=DB.planning.blocs.flatMap(b=>b.tasks.map(t=>t.id));
+    return ids.length!==new Set(ids).size;
+  })();
+  if(hasEmoji&&!hasDoublons) return;
   }
   const blocs=buildBlocs();
   DB.planning={
