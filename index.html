@@ -503,6 +503,29 @@ function renderDayDetail(ds){
       return;
     }
 
+    // Tâches reportées à ce jour spécifiquement
+    const tachesReportees=ALL_TASKS.filter(t=>{
+      const futureHist=DB.hist&&DB.hist[ds];
+      return futureHist&&futureHist.vs&&futureHist.vs['j'+t.id];
+    });
+
+    if(tachesReportees.length){
+      let htmlR=`<div style="font-size:11px;font-weight:700;color:#993556;margin-bottom:8px">
+        ⏭️ ${tachesReportees.length} tâche${tachesReportees.length>1?'s':''} reportée${tachesReportees.length>1?'s':''}
+      </div>`;
+      tachesReportees.forEach(t=>{
+        const col=ZCOL[t.z]||ZCOL.Perso;
+        htmlR+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fdf6f9">
+          <span style="font-size:13px;flex:1">⏭️ ${t.n}</span>
+          <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
+        </div>`;
+      });
+      // Injecter dans le détail
+      const existing=document.getElementById('wk-detail');
+      if(existing) existing.innerHTML=`<div class="card"><div style="padding:14px">${htmlR}</div></div>`;
+      return;
+    }
+
     // Calculer les tâches dues ce jour-là
     const tasksDue=ALL_TASKS.filter(t=>{
       if(t.workOnly&&!futureIsWork) return false;
