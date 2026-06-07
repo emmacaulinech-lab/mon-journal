@@ -376,6 +376,18 @@ textarea{resize:none;min-height:80px;line-height:1.6}
   </div>
 </div>
 
+<!-- MODAL AJOUTER TÂCHE -->
+<div class="modal" id="add-tache-modal" onclick="if(event.target===this)closeAddTache()">
+  <div class="modal-box">
+    <div class="modal-title">
+      + Ajouter une tâche
+      <button class="modal-close" onclick="closeAddTache()">×</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#D4537E;margin-bottom:8px">Tâches en retard</div>
+    <div id="add-tache-list"></div>
+  </div>
+</div>
+  
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -1559,6 +1571,65 @@ function editHeureTacheDetail(ds,blocId,taskIdx){
   sv();renderDayDetail(ds);
   toast('✓ Heure mise à jour !');
 }
+
+let addTacheBlocId=null;
+
+function openAddTache(blocId){
+  addTacheBlocId=blocId;
+  
+  // Tâches déjà dans le planning
+  const dejaDans=new Set(DB.planning.blocs.flatMap(b=>b.tasks.map(t=>t.id)));
+
+  // Tâches en retard pas encore dans le planning
+  const enRetard=ALL_TASKS.filter(t=>{
+    if(dejaDans.has('j'+t.id)) return false;
+    if(!t.f) return false;
+    return isDue(t);
+  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)));
+
+  const el=document.getElementById('add-tache-list');
+  if(!enRetard.length){
+    el.innerHTML=`<div style="text-align:center;padding:20px;color:#aaa;font-size:12px">Aucune tâche en retard 🎉</div>`;
+  } else {
+    el.innerHTML=enRetard.map(t=>{
+      const col=ZCOL[t.z]||ZCOL.Perso;
+      const last=getLastDone('j'+t.id);
+      const retard=last?`${daysSince(last)}j`:'jamais';
+      return`<div onclick="addTacheToBloc('${t.id}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #F4C0D1;border-radius:12px;margin-bottom:6px;cursor:pointer;background:white;transition:background .1s" onmouseenter="this.style.background='#fdf6f9'" onmouseleave="this.style.background='white'">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${t.n}</div>
+          <div style="font-size:10px;color:#aaa;margin-top:2px">Dernière fois : ${retard} · Fréq. ${t.f}j</div>
+        </div>
+        <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('add-tache-modal').classList.add('open');
+}
+
+function addTacheToBloc(taskId){
+  const task=ALL_TASKS.find(t=>t.id===taskId);
+  if(!task||!addTacheBlocId) return;
+  const bloc=DB.planning.blocs.find(b=>b.id===addTacheBlocId);
+  if(!bloc) return;
+
+  // Ajouter la tâche à la fin du bloc
+  const newTask={id:'j'+task.id,n:task.n,zone:task.z,done:false};
+  bloc.tasks.push(newTask);
+
+  // Recalculer les heures
+  calcHeures(DB.planning.blocs);
+  sv();
+  closeAddTache();
+  renderPlanning();
+  toast(`✅ "${task.n}" ajoutée !`);
+}
+
+function closeAddTache(){
+  document.getElementById('add-tache-modal').classList.remove('open');
+  addTacheBlocId=null;
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -2215,7 +2286,12 @@ function renderPlanning(){
           content.appendChild(row);
         });
       }
-      el.appendChild(content);
+      // Bouton ajouter tâche dans chaque bloc (sauf travail et repas)
+    if(isOpen&&bloc.id!=='bloc-travail'&&bloc.id!=='bloc-repas'){
+      const addBtn=document.createElement('div');
+      addBtn.style.cssText='padding:8px 14px;border-top:1px solid #fdf6f9';
+      addBtn.innerHTML=`<button onclick="openAddTache('${bloc.id}')" style="background:none;border:1.5px dashed #F4C0D1;border-radius:10px;width:100%;padding:8px;font-size:12px;color:#D4537E;cursor:pointer;font-family:inherit;font-weight:600">+ Ajouter une tâche</button>`;
+      el.appendChild(addBtn);
     }
 
     container.appendChild(el);
