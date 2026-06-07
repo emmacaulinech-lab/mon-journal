@@ -488,119 +488,299 @@ function renderWeek(){
 function renderDayDetail(ds){
   const el=document.getElementById('wk-detail');
   if(!el) return;
-  const h=DB.hist&&DB.hist[ds];
+
+  const futureDay=new Date(ds+'T12:00:00');
+  const futureDOW=futureDay.getDay();
+  const daysUntil=Math.round((futureDay-TODAY)/86400000);
   const isT=ds===TSTR;
+  const isPast=daysUntil<0;
+  const isFuture=daysUntil>0;
+  const h=DB.hist&&DB.hist[ds];
 
-  if(!h&&!isT){
-    // Jour futur — montrer les tâches prévues
-    const futureDay=new Date(ds+'T12:00:00');
-    const futureDOW=futureDay.getDay();
-    const futureIsWork=[false,false,true,true,true,true,true][futureDOW];
-    const futureIsLight=[false,false,false,false,false,true,true][futureDOW];
-    const daysUntil=Math.round((futureDay-TODAY)/86400000);
-
-    if(daysUntil<0){
-      el.innerHTML=`<div style="text-align:center;padding:20px;color:#D4537E;font-size:12px">Journée non enregistrée</div>`;
-      return;
-    }
-
-    // Tâches reportées à ce jour spécifiquement
-    const tachesReportees=ALL_TASKS.filter(t=>{
-      const futureHist=DB.hist&&DB.hist[ds];
-      return futureHist&&futureHist.vs&&futureHist.vs['j'+t.id];
-    });
-    if(tachesReportees.length){
-      let htmlR=`<div style="font-size:11px;font-weight:700;color:#993556;margin-bottom:8px">
-        ⏭️ ${tachesReportees.length} tâche${tachesReportees.length>1?'s':''} reportée${tachesReportees.length>1?'s':''}
-      </div>`;
-      tachesReportees.forEach(t=>{
-        const col=ZCOL[t.z]||ZCOL.Perso;
-        htmlR+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fdf6f9">
-          <span style="font-size:13px;flex:1">⏭️ ${t.n}</span>
-          <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
-        </div>`;
-      });
-      window._tachesReporteesHTML=htmlR;
-    } else {
-      window._tachesReporteesHTML=null;
-    }
-
-    // Calculer les tâches dues ce jour-là
-    const tasksDue=ALL_TASKS.filter(t=>{
-      if(t.workOnly&&!futureIsWork) return false;
-      if(!t.f) return false;
-      const last=getLastDone(t.id);
-      const lastDate=last?new Date(last+'T12:00:00'):null;
-      if(!lastDate) return true;
-      const daysSinceLast=Math.round((futureDay-lastDate)/86400000);
-      return daysSinceLast>=t.f;
-    });
-
-    let maxT=futureIsWork?(futureIsLight?4:6):12;
-    const daily=tasksDue.filter(t=>t.f===1).slice(0,4);
-    const others=tasksDue.filter(t=>t.f>1).slice(0,maxT-daily.length);
-    const shown=[...daily,...others];
-
-    const dayFr=new Date(ds+'T12:00:00');
-    el.innerHTML=`
-      ${window._tachesReporteesHTML?`<div class="card" style="margin-bottom:10px"><div style="padding:14px">${window._tachesReporteesHTML}</div></div>`:''}
-      <div class="card">
+  // ── JOUR PASSÉ ──
+  if(isPast&&h){
+    const done=h.vs?Object.values(h.vs).filter(Boolean).length:0;
+    const total=h.vs?Object.keys(h.vs).length:0;
+    let html=`<div class="card">
       <div class="card-header">
-        <span class="card-title">${JOURS[dayFr.getDay()]} ${dayFr.getDate()} ${MOIS[dayFr.getMonth()]}</span>
-        <span class="card-meta">${futureIsWork?'💼 Travail':'🌸 Off'}</span>
+        <span class="card-title">${JOURS[futureDOW]} ${futureDay.getDate()} ${MOIS[futureDay.getMonth()]}</span>
+        <span class="card-meta">${h.mood||'—'}</span>
       </div>
       <div style="padding:14px">
-        <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:10px">
-          📋 ${shown.length} tâches prévues
-        </div>
-        ${shown.length?shown.map(t=>{
-          const col=ZCOL[t.z]||ZCOL.Perso;
-          return`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fdf6f9">
-            <span style="font-size:13px;flex:1">${t.n}</span>
-            <span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c}">${t.z}</span>
-          </div>`;
-        }).join(''):'<div style="font-size:12px;color:#aaa">Aucune tâche prévue 🎉</div>'}
+        ${total>0?`<div style="display:flex;justify-content:space-between;font-size:12px;color:#993556;margin-bottom:6px">
+          <span>✅ Accompli</span><span style="font-weight:700">${done}/${total}</span></div>
+          <div style="height:6px;background:#F4C0D1;border-radius:99px;overflow:hidden;margin-bottom:12px">
+            <div style="height:100%;background:#993556;border-radius:99px;width:${Math.round(done/total*100)}%"></div>
+          </div>`:''}
+        ${h.grat&&h.grat.filter(g=>g).length?`
+          <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:6px">🌸 Gratitudes</div>
+          ${h.grat.filter(g=>g).map(g=>`<div style="background:#FAEEDA;border-radius:8px;padding:7px 10px;font-size:12px;color:#854F0B;margin-bottom:5px">${g}</div>`).join('')}`:''}
+        ${h.q1||h.q2||h.q3?`
+          <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:6px;margin-top:10px">🌟 Soirée</div>
+          ${h.q1?`<div style="font-size:12px;margin-bottom:4px">⭐ ${h.q1}</div>`:''}
+          ${h.q2?`<div style="font-size:12px;margin-bottom:4px">💪 ${h.q2}</div>`:''}
+          ${h.q3?`<div style="font-size:12px">${h.q3}</div>`:''}
+        `:''}
       </div>
     </div>`;
+    el.innerHTML=html;
     return;
   }
 
-  const data=isT?{mood:DB.mood,grat:DB.grat,vs:DB.vs,q1:DB.q1,q2:DB.q2,q3:DB.q3}:h;
-  const done=data.vs?Object.values(data.vs).filter(Boolean).length:0;
-  const total=data.vs?Object.keys(data.vs).length:0;
-  const day=new Date(ds+'T12:00:00');
-
-  let html=`<div class="card">
-    <div class="card-header">
-      <span class="card-title">${JOURS[day.getDay()]} ${day.getDate()} ${MOIS[day.getMonth()]}</span>
-      <span class="card-meta">${data.mood||'—'}</span>
-    </div>
-    <div style="padding:14px">`;
-
-  // Progression
-  if(total>0){
-    html+=`<div style="display:flex;justify-content:space-between;font-size:12px;color:#993556;margin-bottom:6px"><span>✅ Tâches accomplies</span><span style="font-weight:700">${done}/${total}</span></div>
-    <div style="height:6px;background:#F4C0D1;border-radius:99px;overflow:hidden;margin-bottom:12px"><div style="height:100%;background:#993556;border-radius:99px;width:${Math.round(done/total*100)}%"></div></div>`;
+  if(isPast&&!h){
+    el.innerHTML=`<div style="text-align:center;padding:20px;color:#aaa;font-size:12px">Journée non enregistrée</div>`;
+    return;
   }
 
-  // Gratitudes
-  if(data.grat&&data.grat.filter(g=>g).length){
-    html+=`<div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:6px">🌸 Gratitudes</div>`;
-    data.grat.filter(g=>g).forEach(g=>{
-      html+=`<div style="background:#FAEEDA;border-radius:8px;padding:7px 10px;font-size:12px;color:#854F0B;margin-bottom:5px">${g}</div>`;
+  // ── AUJOURD'HUI ou FUTUR ──
+  const futureIsWork=[false,false,true,true,true,true,true][futureDOW];
+  const futureIsLight=[false,false,false,false,false,true,true][futureDOW];
+
+  // Récupérer ou générer le planning de ce jour
+  if(!DB.plannings) DB.plannings={};
+  if(!DB.plannings[ds]){
+    DB.plannings[ds]=generatePlanningForDay(ds,futureDOW,futureIsWork,futureIsLight);
+    sv();
+  }
+  const planning=DB.plannings[ds];
+
+  // Tâches reportées ce jour
+  const reportees=new Set(
+    ALL_TASKS.filter(t=>{
+      const futureHist=DB.hist&&DB.hist[ds];
+      return futureHist&&futureHist.vs&&futureHist.vs['j'+t.id];
+    }).map(t=>t.id)
+  );
+
+  const dayLabel=isT?'Aujourd\'hui':`${JOURS[futureDOW]} ${futureDay.getDate()} ${MOIS[futureDay.getMonth()]}`;
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:14px;font-weight:700;color:#993556">${dayLabel}</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;background:${futureIsWork?'#EFF6FF':'#F0FDF4'};color:${futureIsWork?'#1E40AF':'#166534'};padding:3px 9px;border-radius:20px;font-weight:700">${futureIsWork?'💼 Travail':'🌸 Off'}</span>
+      ${isFuture?`<button onclick="resetPlanningJour('${ds}')" style="background:none;border:1px solid #F4C0D1;border-radius:20px;padding:3px 9px;font-size:11px;color:#D4537E;cursor:pointer;font-family:inherit">🔄</button>`:''}
+    </div>
+  </div>`;
+
+  // Légende
+  html+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:10px;background:#FEF3CD;color:#856404;padding:2px 8px;border-radius:20px;font-weight:700">⏭️ Reportée</span>
+    <span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:2px 8px;border-radius:20px;font-weight:700">🔄 Hebdo+</span>
+    <span style="font-size:10px;background:#F0FDF4;color:#166534;padding:2px 8px;border-radius:20px;font-weight:700">✅ Quotidien</span>
+  </div>`;
+
+  // Blocs du planning
+  planning.blocs.forEach(bloc=>{
+    if(!bloc.tasks.length&&bloc.id==='bloc-travail'&&!futureIsWork) return;
+    const isOpen=!bloc.collapsed;
+    const done=bloc.tasks.filter(t=>isT?(DB.planning?.vs?.[t.id]):(DB.plannings[ds]?.vs?.[t.id])).length;
+    const total=bloc.tasks.length;
+
+    html+=`<div style="background:white;border:1.5px solid ${bloc.bordure};border-radius:14px;margin-bottom:8px;overflow:hidden">
+      <div onclick="toggleBlocDetail('${ds}','${bloc.id}')" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${bloc.couleur};cursor:pointer">
+        <span style="font-size:16px">${bloc.emoji}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:${bloc.textCol}">${bloc.label}</div>
+          <div style="font-size:10px;color:${bloc.textCol};opacity:.7">${bloc.heureDebut||''} → ${bloc.heureFin||''}</div>
+        </div>
+        ${total>0?`<span style="font-size:11px;font-weight:700;color:${bloc.textCol}">${total} tâches</span>`:''}
+        <span style="font-size:12px;color:${bloc.textCol}">${isOpen?'▾':'▸'}</span>
+      </div>`;
+
+    if(isOpen&&total>0){
+      html+=`<div>`;
+      bloc.tasks.forEach((t,tidx)=>{
+        const isReportee=reportees.has(t.id.replace(/^[mj]/,''));
+        const task=ALL_TASKS.find(x=>'j'+x.id===t.id||'m'+x.id===t.id);
+        const isQuotidien=task&&task.f===1;
+        const isHebdoPlus=task&&task.f>1;
+        const col=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
+        const isDoneT=isT?(DB.planning?.vs?.[t.id]):(DB.plannings[ds]?.vs?.[t.id]);
+
+        let badge='';
+        if(isReportee) badge=`<span style="font-size:10px;background:#FEF3CD;color:#856404;padding:2px 6px;border-radius:20px;font-weight:700;flex-shrink:0">⏭️</span>`;
+        else if(isHebdoPlus) badge=`<span style="font-size:10px;background:#DBEAFE;color:#1E40AF;padding:2px 6px;border-radius:20px;font-weight:700;flex-shrink:0">🔄 ${task.f}j</span>`;
+
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #fdf6f9;background:${isDoneT?'#f9fef9':'white'}">
+          <span style="font-size:10px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 6px;border-radius:6px;font-weight:700;flex-shrink:0">${t.heureDebut||''}</span>
+          <span style="flex:1;font-size:12px;${isDoneT?'text-decoration:line-through;color:#aaa':''}">${t.n}</span>
+          ${badge}
+          ${col?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${col.bg};color:${col.c};flex-shrink:0">${t.zone}</span>`:''}
+          ${isFuture?`<button onclick="reporterDepuisDetail('${ds}','${bloc.id}',${tidx})" style="background:none;border:none;cursor:pointer;font-size:14px;color:#F4C0D1;flex-shrink:0">⏭️</button>`:''}
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  });
+
+  // Modifier horaires si futur
+  if(isFuture&&futureIsWork){
+    const trav=planning.heureTravail||{debut:'09:00',fin:'19:00'};
+    html+=`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:10px 12px;margin-top:8px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:#1E40AF;font-weight:600">💼 ${trav.debut} → ${trav.fin}</span>
+      <button onclick="editHorairesJour('${ds}')" style="background:white;border:1px solid #BFDBFE;border-radius:20px;padding:4px 10px;font-size:11px;color:#1E40AF;cursor:pointer;font-family:inherit">✏️ Modifier</button>
+    </div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+function generatePlanningForDay(ds,dow,isWork,isLight){
+  const savedTravail=DB.plannings?.[ds]?.heureTravail;
+  const travail=savedTravail||(()=>{
+    if(dow===2) return {debut:'10:00',fin:'19:00'};
+    if(dow===6) return {debut:'09:00',fin:'14:00'};
+    return {debut:'09:00',fin:'19:00'};
+  })();
+
+  const tempsLibre=isWork?(()=>{
+    const[h]=travail.fin.split(':').map(Number);
+    if(h<=14) return 5;if(h<=16) return 3;if(h<=17) return 2;return 1;
+  })():999;
+
+  const tachesAssignees=new Set();
+
+  // Simuler les tâches dues ce jour-là
+  const futureDay=new Date(ds+'T12:00:00');
+  function isDueFuture(task){
+    if(!task.f) return false;
+    const last=getLastDone('j'+task.id);
+    if(!last) return true;
+    const lastDate=new Date(last+'T12:00:00');
+    const daysSinceLast=Math.round((futureDay-lastDate)/86400000);
+    return daysSinceLast>=task.f;
+  }
+
+  function getTasksFuture(max,exclude=tachesAssignees,noAdmin=true){
+    return ALL_TASKS.filter(t=>{
+      if(t.workOnly&&!isWork) return false;
+      if(!t.f) return false;
+      if(noAdmin&&(t.z==='Admin'||t.z==='Marketing')) return false;
+      if(exclude.has(t.id)) return false;
+      return isDueFuture(t);
+    }).sort((a,b)=>{
+      const la=getLastDone('j'+a.id);
+      const lb=getLastDone('j'+b.id);
+      return daysSince(la)-daysSince(lb);
+    }).slice(0,max).map(t=>{tachesAssignees.add(t.id);return t;});
+  }
+
+  const blocs=[];
+
+  // MATIN
+  const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z}));
+  const tachesMatin=getTasksFuture(isWork?2:3);
+  blocs.push({
+    id:'bloc-matin',emoji:'🌅',label:'Matin',heureDebut:'07:00',
+    couleur:'#FBEAF0',bordure:'#F4C0D1',textCol:'#993556',
+    tasks:[...routineMatin,...tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))]
+  });
+
+  if(isWork){
+    const tachesPro=ALL_TASKS.filter(t=>(t.z==='Admin'||t.z==='Marketing')&&isDueFuture(t)&&!tachesAssignees.has(t.id))
+      .slice(0,4).map(t=>{tachesAssignees.add(t.id);return{id:'j'+t.id,n:t.n,zone:t.z};});
+    blocs.push({
+      id:'bloc-travail',emoji:'💼',label:'Travail',heureDebut:travail.debut,
+      couleur:'#EFF6FF',bordure:'#BFDBFE',textCol:'#1E40AF',
+      tasks:tachesPro,fixed:true
     });
   }
 
-  // Questions du soir
-  if(data.q1||data.q2||data.q3){
-    html+=`<div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:6px;margin-top:10px">🌟 Soirée</div>`;
-    if(data.q1) html+=`<div style="font-size:12px;color:#2d2d2d;margin-bottom:4px">⭐ ${data.q1}</div>`;
-    if(data.q2) html+=`<div style="font-size:12px;color:#2d2d2d;margin-bottom:4px">💪 ${data.q2}</div>`;
-    if(data.q3) html+=`<div style="font-size:12px;color:#2d2d2d">${data.q3}</div>`;
+  if(!isWork||(dow===6)){
+    const tachesAM=getTasksFuture(isWork?3:4);
+    blocs.push({
+      id:'bloc-aprem',emoji:'☀️',label:isWork?'Après-midi':'Matin libre',
+      heureDebut:isWork?travail.fin:'08:30',
+      couleur:'#FEF9C3',bordure:'#FDE68A',textCol:'#854F0B',
+      tasks:tachesAM.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))
+    });
   }
 
-  html+=`</div></div>`;
-  el.innerHTML=html;
+  const tachesSoir=getTasksFuture(tempsLibre);
+  blocs.push({
+    id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
+    heureDebut:isWork?addMinutes(travail.fin,20):'17:00',
+    couleur:'#F0FDF4',bordure:'#9FE1CB',textCol:'#166534',
+    tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))
+  });
+
+  blocs.push({
+    id:'bloc-repas',emoji:'🍽️',label:'Repas',
+    heureDebut:isWork?'20:30':(dow===6?'18:30':'19:00'),
+    couleur:'#FEF3CD',bordure:'#FDE68A',textCol:'#856404',
+    tasks:[{id:'repas1',n:'🍽️ Préparer dîner'},{id:'repas2',n:'🍽️ Débarrasser + vaisselle'}]
+  });
+
+  blocs.push({
+    id:'bloc-soir',emoji:'🌙',label:'Routine du soir',
+    heureDebut:isWork?'21:30':(dow===6?'19:30':'20:30'),
+    couleur:'#FDF4FF',bordure:'#E9D5FF',textCol:'#7E22CE',
+    tasks:ROUTINE_SOIR.map(t=>({id:'s'+t.id,n:t.n,zone:t.z}))
+  });
+
+  // Calculer les heures
+  blocs.forEach(bloc=>{
+    let h=bloc.heureDebut||'07:00';
+    bloc.tasks.forEach(t=>{t.heureDebut=h;h=addMinutes(h,getDuree(t.id));});
+    bloc.heureFin=h;
+  });
+
+  return{date:ds,blocs,vs:{},heureTravail:travail};
+}
+
+function toggleBlocDetail(ds,blocId){
+  if(!DB.plannings||!DB.plannings[ds]) return;
+  const bloc=DB.plannings[ds].blocs.find(b=>b.id===blocId);
+  if(bloc) bloc.collapsed=!bloc.collapsed;
+  sv();renderDayDetail(ds);
+}
+
+function reporterDepuisDetail(ds,blocId,taskIdx){
+  if(!DB.plannings||!DB.plannings[ds]) return;
+  const bloc=DB.plannings[ds].blocs.find(b=>b.id===blocId);
+  if(!bloc) return;
+  const task=bloc.tasks[taskIdx];
+
+  const jours=prompt(`Reporter "${task.n}" de combien de jours ?`,'1');
+  if(!jours) return;
+  const j=parseInt(jours);
+  if(isNaN(j)||j<1){toast('Nombre invalide');return;}
+
+  const futureDate=new Date(ds+'T12:00:00');
+  futureDate.setDate(futureDate.getDate()+j);
+  const futureStr=futureDate.toISOString().split('T')[0];
+
+  const realId=task.id.replace(/^[mjs]/,'');
+  if(!DB.hist) DB.hist={};
+  if(!DB.hist[futureStr]) DB.hist[futureStr]={vs:{}};
+  if(!DB.hist[futureStr].vs) DB.hist[futureStr].vs={};
+  DB.hist[futureStr].vs['j'+realId]=true;
+
+  bloc.tasks.splice(taskIdx,1);
+  sv();renderDayDetail(ds);
+  toast(`⏭️ Reportée au ${futureDate.getDate()} ${MOIS[futureDate.getMonth()]}`);
+}
+
+function editHorairesJour(ds){
+  if(!DB.plannings||!DB.plannings[ds]) return;
+  const trav=DB.plannings[ds].heureTravail||{debut:'09:00',fin:'19:00'};
+  const debut=prompt('Heure de début :',trav.debut);
+  if(!debut) return;
+  const fin=prompt('Heure de fin :',trav.fin);
+  if(!fin) return;
+  DB.plannings[ds].heureTravail={debut,fin};
+  // Reconstruire
+  delete DB.plannings[ds];
+  sv();renderDayDetail(ds);
+  toast('✓ Horaires mis à jour !');
+}
+
+function resetPlanningJour(ds){
+  if(!confirm('Regénérer le planning de ce jour ?')) return;
+  if(DB.plannings) delete DB.plannings[ds];
+  sv();renderDayDetail(ds);
+  toast('🔄 Planning regénéré !');
 }
 
 // ═══════════════════════════════════════
