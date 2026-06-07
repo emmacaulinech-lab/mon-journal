@@ -104,6 +104,34 @@ textarea{resize:none;min-height:80px;line-height:1.6}
 /* TOAST */
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:#993556;color:white;padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* PLANNING BLOCS */
+.plan-bloc{background:white;border:1.5px solid #F4C0D1;border-radius:14px;margin-bottom:8px;overflow:hidden;transition:transform .2s,box-shadow .2s;touch-action:none}
+.plan-bloc.dragging{transform:scale(1.02);box-shadow:0 8px 24px rgba(153,53,86,.2);z-index:50;opacity:.9}
+.plan-bloc.drag-over{border-color:#993556;border-style:dashed}
+.plan-bloc-header{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:grab}
+.plan-bloc-header:active{cursor:grabbing}
+.plan-drag-handle{font-size:16px;color:#F4C0D1;flex-shrink:0}
+.plan-bloc-time{font-size:12px;font-family:monospace;color:#993556;font-weight:700;flex-shrink:0;cursor:pointer;background:#FBEAF0;padding:3px 8px;border-radius:8px}
+.plan-bloc-title{flex:1;font-size:13px;font-weight:700;color:#2d2d2d}
+.plan-bloc-type{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;flex-shrink:0}
+.plan-tasks{border-top:1px solid #fdf6f9}
+.plan-task{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #fdf6f9;cursor:pointer}
+.plan-task:last-child{border-bottom:none}
+.plan-task:active{background:#fdf6f9}
+.plan-task.done{background:#f9fef9}
+.plan-task .chk{width:20px;height:20px;border-radius:50%;border:2px solid #F4C0D1;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.plan-task.done .chk{background:#9FE1CB;border-color:#085041;color:#085041}
+.plan-task .tname{flex:1;font-size:12px}
+.plan-task.done .tname{text-decoration:line-through;color:#aaa}
+
+/* MODAL REPORTER */
+.report-modal{display:none;position:fixed;inset:0;background:rgba(153,53,86,.3);backdrop-filter:blur(4px);z-index:200;align-items:flex-end;justify-content:center}
+.report-modal.open{display:flex}
+.report-box{background:white;border-radius:24px 24px 0 0;padding:20px 18px 40px;width:100%;max-width:430px;border-top:2px solid #F4C0D1}
+.report-title{font-size:14px;font-weight:700;color:#993556;margin-bottom:14px}
+.report-opts{display:flex;flex-direction:column;gap:8px}
+.report-opt{padding:13px 16px;border-radius:12px;border:1.5px solid #F4C0D1;background:#fdf6f9;font-size:13px;cursor:pointer;text-align:left;font-family:inherit;font-weight:600;color:#2d2d2d;transition:background .1s}
+.report-opt:active{background:#FBEAF0}
 </style>
 </head>
 <body>
@@ -170,29 +198,14 @@ textarea{resize:none;min-height:80px;line-height:1.6}
       <input type="text" id="int-inp" placeholder="Aujourd'hui je veux..." oninput="DB.intention=this.value;sv()"/>
     </div>
 
-    <!-- Routine matinale -->
-    <div class="slbl">🌅 Routine matinale</div>
-    <div class="card" id="bloc-matin">
-      <div class="card-header">
-        <span class="card-title">Routine matinale</span>
-        <span class="card-meta" id="prog-matin-lbl">0/0</span>
-      </div>
-      <div class="prog"><div class="prog-fill" id="prog-matin" style="width:0%"></div></div>
-      <div id="list-matin"></div>
+    <!-- Planning visuel -->
+    <div class="slbl" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📅 Ma journée</span>
+      <button class="btn btn-light" style="padding:4px 10px;font-size:11px" onclick="resetPlanning()">🔄 Regénérer</button>
     </div>
+    <div id="planning-container"></div>
 
-    <!-- Tâches du jour -->
-    <div class="slbl">✅ Tâches du jour</div>
-    <div class="card" id="bloc-jour">
-      <div class="card-header">
-        <span class="card-title">Aujourd'hui</span>
-        <span class="card-meta" id="prog-jour-lbl">0/0</span>
-      </div>
-      <div class="prog"><div class="prog-fill" id="prog-jour" style="width:0%"></div></div>
-      <div id="list-jour"></div>
-    </div>
-
-    <!-- Routine du soir (visible après 18h) -->
+    <!-- Routine du soir -->
     <div class="soir-section" id="soir-section">
       <div class="slbl">🌙 Routine du soir</div>
       <div class="card">
@@ -204,7 +217,6 @@ textarea{resize:none;min-height:80px;line-height:1.6}
         <div id="list-soir"></div>
       </div>
 
-      <!-- 3 questions du soir -->
       <div class="slbl">🌟 Questions du soir</div>
       <div class="qcard">
         <div class="qlbl">Meilleur moment de la journée ?</div>
@@ -225,7 +237,6 @@ textarea{resize:none;min-height:80px;line-height:1.6}
           <button class="qopt" onclick="setQ3(this,'Sérène 🌸')">Sérène 🌸</button>
         </div>
       </div>
-
       <button class="btn btn-rose" style="margin-top:8px" onclick="finishDay()">✓ Terminer la journée</button>
     </div>
 
@@ -346,6 +357,21 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     </div>
     <input type="text" id="g-inp" placeholder="Je suis reconnaissante pour..." style="margin-bottom:12px"/>
     <button class="btn btn-rose" onclick="saveGrat()">✓ Valider</button>
+  </div>
+</div>
+
+<!-- MODAL REPORTER -->
+<div class="report-modal" id="report-modal" onclick="if(event.target===this)closeReportModal()">
+  <div class="report-box">
+    <div class="report-title" id="report-task-name">Tâche</div>
+    <div class="report-opts">
+      <button class="report-opt" onclick="validerTask()">✅ Valider — c'est fait !</button>
+      <button class="report-opt" onclick="reporterTask(1)">➡️ Demain</button>
+      <button class="report-opt" onclick="reporterTask(2)">📅 Dans 2 jours</button>
+      <button class="report-opt" onclick="reporterTask(3)">📅 Dans 3 jours</button>
+      <button class="report-opt" onclick="reporterTask(7)">📅 La semaine prochaine</button>
+      <button class="report-opt" style="color:#aaa" onclick="closeReportModal()">Annuler</button>
+    </div>
   </div>
 </div>
 
@@ -1421,33 +1447,351 @@ function toggleTask(id,listId,prefix){
   renderList(listId,prefix);
 }
 
-function renderList(listId,prefix){
-  const el=document.getElementById(listId);
-  if(!el) return;
-  // Déterminer les tâches selon la liste
-  let tasks;
-  if(prefix==='m') tasks=getRoutineMatin();
-  else if(prefix==='s') tasks=ROUTINE_SOIR;
-  else tasks=getTasksForToday();
+// ═══════════════════════════════════════
+// PLANNING VISUEL
+// ═══════════════════════════════════════
+let dragSrc=null;
+let currentTaskAction=null;
 
-  el.innerHTML='';
-  tasks.forEach(t=>el.appendChild(renderTRow(t,listId,prefix)));
+const BLOC_TYPES={
+  matin:{label:'🌅 Routine matinale',col:'#FBEAF0',textCol:'#993556',border:'#F4C0D1'},
+  travail:{label:'💼 Travail',col:'#EFF6FF',textCol:'#1E40AF',border:'#BFDBFE'},
+  taches:{label:'✅ Tâches',col:'#F0FDF4',textCol:'#166534',border:'#9FE1CB'},
+  soir:{label:'🌙 Soirée libre',col:'#FDF4FF',textCol:'#7E22CE',border:'#E9D5FF'},
+  repas:{label:'🍽️ Repas',col:'#FEF3CD',textCol:'#856404',border:'#FDE68A'},
+};
 
-  // Update progress
-  const done=tasks.filter(t=>DB.vs&&DB.vs[prefix+t.id]).length;
-  const total=tasks.length;
-  const pct=total?Math.round(done/total*100):0;
+function buildPlanning(){
+  if(DB.planning&&DB.planning.date===TSTR) return; // Déjà généré aujourd'hui
 
-  if(prefix==='m'){
-    document.getElementById('prog-matin').style.width=pct+'%';
-    document.getElementById('prog-matin-lbl').textContent=`${done}/${total}`;
-  } else if(prefix==='s'){
-    document.getElementById('prog-soir').style.width=pct+'%';
-    document.getElementById('prog-soir-lbl').textContent=`${done}/${total}`;
-  } else {
-    document.getElementById('prog-jour').style.width=pct+'%';
-    document.getElementById('prog-jour-lbl').textContent=`${done}/${total}`;
+  const blocs=[];
+
+  // MATIN
+  blocs.push({
+    id:'bloc-matin',
+    type:'matin',
+    heure: IS_WORK?'07:00':'08:00',
+    tasks: getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,done:false}))
+  });
+
+  // TÂCHES MATIN (avant travail si jour de travail)
+  if(IS_WORK){
+    const tachesMatin=getTasksMatin();
+    if(tachesMatin.length){
+      blocs.push({
+        id:'bloc-taches-matin',
+        type:'taches',
+        heure:'08:30',
+        tasks:tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
+      });
+    }
   }
+
+  // TRAVAIL
+  if(IS_WORK){
+    const heureDebut=getHeureDebut();
+    blocs.push({
+      id:'bloc-travail',
+      type:'travail',
+      heure:heureDebut,
+      tasks:[],
+      fixed:true // Non déplaçable
+    });
+  }
+
+  // REPAS
+  blocs.push({
+    id:'bloc-repas',
+    type:'repas',
+    heure:IS_WORK?'20:30':'12:30',
+    tasks:[{id:'repas1',n:'🍽️ Préparer dîner',done:false},{id:'repas2',n:'🍽️ Débarrasser + vaisselle',done:false}]
+  });
+
+  // TÂCHES SOIR (1 max en semaine)
+  const tachesSoir=getTasksSoir();
+  if(tachesSoir.length){
+    blocs.push({
+      id:'bloc-taches-soir',
+      type:'taches',
+      heure:IS_WORK?'19:30':'14:00',
+      tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
+    });
+  }
+
+  // SOIRÉE LIBRE
+  blocs.push({
+    id:'bloc-soir',
+    type:'soir',
+    heure:'21:00',
+    tasks:[
+      {id:'soir1',n:'📱 Réseaux / vidéos',done:false},
+      {id:'soir2',n:'📺 Télé',done:false},
+      {id:'soir3',n:'📚 Lire 20 min',done:false},
+    ]
+  });
+
+  // Trier par heure
+  blocs.sort((a,b)=>a.heure.localeCompare(b.heure));
+
+  DB.planning={date:TSTR,blocs,vs:{}};
+  sv();
+}
+
+function getHeureDebut(){
+  const dow=DOW;
+  if(dow===2) return '10:00'; // mardi
+  if(dow===6) return '09:00'; // samedi
+  return '09:00'; // mer/jeu/ven
+}
+
+function getTasksMatin(){
+  // Max 2 tâches rapides avant le travail
+  const dues=ALL_TASKS.filter(t=>{
+    if(t.workOnly) return false;
+    if(!t.f||t.f>14) return false; // Pas les tâches trop rares
+    return isDue(t);
+  }).sort((a,b)=>{
+    const la=getLastDone(a.id);
+    const lb=getLastDone(b.id);
+    return daysSince(la)-daysSince(lb);
+  });
+  return dues.slice(0,2);
+}
+
+function getTasksSoir(){
+  if(IS_WORK){
+    // 1 seule tâche le soir en semaine, légère
+    const dues=ALL_TASKS.filter(t=>{
+      if(t.workOnly) return false;
+      if(!t.f||t.f>7) return false;
+      return isDue(t);
+    }).sort((a,b)=>daysSince(getLastDone(a.id))-daysSince(getLastDone(b.id)));
+    return dues.slice(0,1);
+  } else {
+    // Jour off → plus de tâches
+    const dues=ALL_TASKS.filter(t=>{
+      if(!t.f) return false;
+      return isDue(t);
+    }).sort((a,b)=>daysSince(getLastDone(a.id))-daysSince(getLastDone(b.id)));
+    return dues.slice(0,6);
+  }
+}
+
+function getRoutineMatin(){
+  if(IS_WORK){
+    return ROUTINE_MATIN.filter(t=>ROUTINE_MATIN_WORK.includes(t.id));
+  }
+  return ROUTINE_MATIN;
+}
+
+function renderPlanning(){
+  buildPlanning();
+  const container=document.getElementById('planning-container');
+  if(!container) return;
+  container.innerHTML='';
+
+  DB.planning.blocs.forEach((bloc,idx)=>{
+    const type=BLOC_TYPES[bloc.type]||BLOC_TYPES.taches;
+    const done=bloc.tasks.filter(t=>DB.planning.vs&&DB.planning.vs[t.id]).length;
+    const total=bloc.tasks.length;
+
+    const el=document.createElement('div');
+    el.className='plan-bloc';
+    el.dataset.idx=idx;
+    el.style.borderColor=type.border;
+
+    // Header
+    let headerHTML=`<div class="plan-bloc-header" 
+      ${!bloc.fixed?`draggable="true" 
+      ondragstart="onDragStart(event,${idx})" 
+      ondragend="onDragEnd(event)"
+      ontouchstart="onTouchStart(event,${idx})"
+      ontouchmove="onTouchMove(event)"
+      ontouchend="onTouchEnd(event,${idx})"`:''}>
+      <span class="plan-drag-handle">${bloc.fixed?'📌':'⠿'}</span>
+      <span class="plan-bloc-time" onclick="${bloc.fixed?'':`editHeure(${idx})`}">${bloc.heure}</span>
+      <span class="plan-bloc-title" style="color:${type.textCol}">${type.label}</span>
+      ${total>0?`<span class="plan-bloc-type" style="background:${type.col};color:${type.textCol}">${done}/${total}</span>`:''}
+    </div>`;
+
+    // Progress si tâches
+    let progHTML='';
+    if(total>0){
+      const pct=Math.round(done/total*100);
+      progHTML=`<div style="height:3px;background:#F4C0D1;margin:0 14px 8px;border-radius:99px;overflow:hidden">
+        <div style="height:100%;background:#993556;border-radius:99px;width:${pct}%;transition:width .3s"></div>
+      </div>`;
+    }
+
+    // Tâches
+    let tasksHTML='<div class="plan-tasks">';
+    bloc.tasks.forEach(t=>{
+      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      const zone=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
+      tasksHTML+=`<div class="plan-task${isDone?' done':''}" onclick="handleTaskTap('${t.id}','${t.n.replace(/'/g,"\\'")}',${idx})">
+        <div class="chk">${isDone?'✓':''}</div>
+        <span class="tname">${t.n}</span>
+        ${zone?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${zone.bg};color:${zone.c}">${t.zone}</span>`:''}
+      </div>`;
+    });
+    tasksHTML+='</div>';
+
+    el.innerHTML=headerHTML+progHTML+(total>0?tasksHTML:'');
+
+    // Drag & drop desktop
+    el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag-over');});
+    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+    el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag-over');onDrop(idx);});
+
+    container.appendChild(el);
+  });
+}
+
+// DRAG & DROP DESKTOP
+function onDragStart(e,idx){
+  dragSrc=idx;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>document.querySelectorAll('.plan-bloc')[idx]?.classList.add('dragging'),0);
+}
+
+function onDragEnd(e){
+  document.querySelectorAll('.plan-bloc').forEach(b=>b.classList.remove('dragging','drag-over'));
+}
+
+function onDrop(targetIdx){
+  if(dragSrc===null||dragSrc===targetIdx) return;
+  const blocs=DB.planning.blocs;
+  const [moved]=blocs.splice(dragSrc,1);
+  blocs.splice(targetIdx,0,moved);
+  dragSrc=null;
+  sv();renderPlanning();
+}
+
+// DRAG & DROP TOUCH (iPhone)
+let touchSrcIdx=null;
+let touchClone=null;
+let touchStartY=0;
+
+function onTouchStart(e,idx){
+  if(DB.planning.blocs[idx]?.fixed) return;
+  touchSrcIdx=idx;
+  touchStartY=e.touches[0].clientY;
+  const el=document.querySelectorAll('.plan-bloc')[idx];
+  el.classList.add('dragging');
+  // Créer un clone visuel
+  touchClone=el.cloneNode(true);
+  touchClone.style.cssText=`position:fixed;left:${el.getBoundingClientRect().left}px;top:${el.getBoundingClientRect().top}px;width:${el.offsetWidth}px;opacity:.8;z-index:999;pointer-events:none;border-radius:14px;box-shadow:0 8px 24px rgba(153,53,86,.3)`;
+  document.body.appendChild(touchClone);
+}
+
+function onTouchMove(e){
+  if(touchSrcIdx===null||!touchClone) return;
+  e.preventDefault();
+  const touch=e.touches[0];
+  touchClone.style.top=(touch.clientY-40)+'px';
+  // Highlight la cible
+  document.querySelectorAll('.plan-bloc').forEach((b,i)=>{
+    const rect=b.getBoundingClientRect();
+    if(touch.clientY>rect.top&&touch.clientY<rect.bottom&&i!==touchSrcIdx){
+      b.classList.add('drag-over');
+    } else {
+      b.classList.remove('drag-over');
+    }
+  });
+}
+
+function onTouchEnd(e){
+  if(touchSrcIdx===null) return;
+  if(touchClone){touchClone.remove();touchClone=null;}
+  document.querySelectorAll('.plan-bloc').forEach(b=>b.classList.remove('dragging','drag-over'));
+
+  const touch=e.changedTouches[0];
+  let targetIdx=null;
+  document.querySelectorAll('.plan-bloc').forEach((b,i)=>{
+    const rect=b.getBoundingClientRect();
+    if(touch.clientY>rect.top&&touch.clientY<rect.bottom) targetIdx=i;
+  });
+
+  if(targetIdx!==null&&targetIdx!==touchSrcIdx){
+    const blocs=DB.planning.blocs;
+    const [moved]=blocs.splice(touchSrcIdx,1);
+    blocs.splice(targetIdx,0,moved);
+    sv();
+  }
+  touchSrcIdx=null;
+  renderPlanning();
+}
+
+// MODIFIER L'HEURE
+function editHeure(idx){
+  const bloc=DB.planning.blocs[idx];
+  const nouvelleHeure=prompt('Modifier l\'heure :',bloc.heure);
+  if(!nouvelleHeure) return;
+  if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
+  bloc.heure=nouvelleHeure;
+  sv();renderPlanning();
+}
+
+// TAP SUR UNE TÂCHE
+function handleTaskTap(taskId,taskName,blocIdx){
+  // Si déjà done → décocher directement
+  if(DB.planning.vs&&DB.planning.vs[taskId]){
+    DB.planning.vs[taskId]=false;
+    sv();renderPlanning();
+    return;
+  }
+  // Sinon → menu valider / reporter
+  currentTaskAction={taskId,taskName,blocIdx};
+  openReportModal();
+}
+
+function openReportModal(){
+  const t=currentTaskAction;
+  document.getElementById('report-task-name').textContent=t.taskName;
+  document.getElementById('report-modal').classList.add('open');
+}
+
+function closeReportModal(){
+  document.getElementById('report-modal').classList.remove('open');
+  currentTaskAction=null;
+}
+
+function validerTask(){
+  if(!currentTaskAction) return;
+  if(!DB.planning.vs) DB.planning.vs={};
+  DB.planning.vs[currentTaskAction.taskId]=true;
+  // Marquer dans l'historique pour mettre à jour la fréquence
+  const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
+  if(!DB.hist) DB.hist={};
+  if(!DB.hist[TSTR]) DB.hist[TSTR]={vs:{}};
+  if(!DB.hist[TSTR].vs) DB.hist[TSTR].vs={};
+  DB.hist[TSTR].vs['j'+realId]=true;
+  sv();renderPlanning();closeReportModal();
+  toast('✅ Validée !');
+}
+
+function reporterTask(jours){
+  if(!currentTaskAction) return;
+  const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
+  // Reporter = simuler que c'est fait aujourd'hui pour décaler la prochaine échéance
+  const futureDate=new Date(TODAY);
+  futureDate.setDate(TODAY.getDate()+(jours-1));
+  const futureStr=futureDate.toISOString().split('T')[0];
+  if(!DB.hist) DB.hist={};
+  if(!DB.hist[futureStr]) DB.hist[futureStr]={vs:{}};
+  if(!DB.hist[futureStr].vs) DB.hist[futureStr].vs={};
+  DB.hist[futureStr].vs['j'+realId]=true;
+  // Retirer du planning du jour
+  const bloc=DB.planning.blocs[currentTaskAction.blocIdx];
+  if(bloc) bloc.tasks=bloc.tasks.filter(t=>t.id!==currentTaskAction.taskId);
+  sv();renderPlanning();closeReportModal();
+  toast(`⏭️ Reportée de ${jours} jour${jours>1?'s':''}`);
+}
+
+function resetPlanning(){
+  if(!confirm('Regénérer le planning du jour ?')) return;
+  DB.planning=null;
+  sv();renderPlanning();
 }
 
 function getRoutineMatin(){
@@ -1459,8 +1803,8 @@ function getRoutineMatin(){
 }
 
 function renderAll(){
-  renderList('list-matin','m');
-  renderList('list-jour','j');
+  renderPlanning();
+  renderPlanning();
   renderList('list-soir','s');
   renderMood();
   renderGrat();
