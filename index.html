@@ -3353,7 +3353,24 @@ function toast(msg){
 }
 
 async function finishDay(){
-  if(!confirm('Terminer la journée ?')) return;
+  // Calculer le bilan
+  const allTasks=DB.planning?.blocs?.flatMap(b=>b.tasks)||[];
+  const total=allTasks.length;
+  const faites=Object.values(DB.planning?.vs||{}).filter(v=>v===true).length;
+  const pct=total?Math.round(faites/total*100):0;
+  const mood=DB.mood||'—';
+  const grats=(DB.grat||[]).filter(g=>g).length;
+
+  const msg=`Bilan du ${TODAY.getDate()} ${MOIS[TODAY.getMonth()]} :\n\n`+
+    `✅ ${faites}/${total} tâches (${pct}%)\n`+
+    `😊 Humeur : ${mood}\n`+
+    `🌸 Gratitudes : ${grats}/3\n`+
+    (DB.intention?`🎯 Intention : ${DB.intention}\n`:'')+
+    (DB.q1?`⭐ ${DB.q1}\n`:'')+
+    (DB.q2?`💪 ${DB.q2}\n`:'')+
+    `\nTerminer la journée ?`;
+
+  if(!confirm(msg)) return;
   // Sauvegarder l'historique
   if(!DB.hist) DB.hist={};
   DB.hist[TSTR]={
