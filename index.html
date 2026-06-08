@@ -1780,8 +1780,7 @@ function addTacheToBloc(taskId){
     bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
   }
 
-  // Recalculer les heures
-  calcHeures(DB.planning.blocs);
+if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();
   closeAddTache();
   renderPlanning();
