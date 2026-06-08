@@ -2788,15 +2788,13 @@ function onDropTask(targetBlocId,targetIdx){
   const[moved]=bloc.tasks.splice(dragSrc,1);
   bloc.tasks.splice(targetIdx,0,moved);
   dragSrc=null;dragBlocId=null;
-  // Garder les heures existantes, juste réattribuer dans le nouvel ordre
-  const heures=bloc.tasks.map(t=>t.heureDebut).filter(Boolean).sort();
-  bloc.tasks.forEach((t,i)=>{
-    if(heures[i]) t.heureDebut=heures[i];
-  });
-  if(bloc.tasks.length){
-    const last=bloc.tasks[bloc.tasks.length-1];
-    bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
-  }
+  // Recalculer les heures en cascade depuis la première tâche
+      let h=bloc.tasks[0]?.heureDebut||bloc.heureDebut||'07:00';
+      bloc.tasks.forEach(t=>{
+        t.heureDebut=h;
+        h=addMinutes(h,getDuree(t.id));
+      });
+      bloc.heureFin=h;
   if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();renderPlanning();
 }
@@ -2842,9 +2840,16 @@ function onTouchEnd(e,blocId){
   if(targetIdx!==null&&targetIdx!==touchSrcIdx&&blocId===touchBlocId){
     const bloc=DB.planning.blocs.find(b=>b.id===touchBlocId);
     if(bloc){
-      const [moved]=bloc.tasks.splice(touchSrcIdx,1);
+      const[moved]=bloc.tasks.splice(touchSrcIdx,1);
       bloc.tasks.splice(targetIdx,0,moved);
-      calcHeures(DB.planning.blocs);
+      // Recalculer les heures en cascade depuis la première tâche
+      let h=bloc.tasks[0]?.heureDebut||bloc.heureDebut||'07:00';
+      bloc.tasks.forEach(t=>{
+        t.heureDebut=h;
+        h=addMinutes(h,getDuree(t.id));
+      });
+      bloc.heureFin=h;
+      if(DB.plannings) DB.plannings[TSTR]=DB.planning;
       sv();
     }
   }
