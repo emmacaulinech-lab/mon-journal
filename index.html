@@ -1570,6 +1570,7 @@ function finirLivre(){
 let heureModalData=null;
 
 function editHeureTache(blocId,taskIdx){
+  console.log('editHeureTache appelée',blocId,taskIdx);
   const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
   const bloc=planning.blocs.find(b=>b.id===blocId);
   if(!bloc) return;
@@ -2301,8 +2302,8 @@ function renderPlanning(){
               ontouchstart="onTouchStart(event,'${bloc.id}',${taskIdx})"
               ontouchmove="onTouchMove(event)"
               ontouchend="onTouchEnd(event,'${bloc.id}')">⠿</span>
-            <span style="font-size:11px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 7px;border-radius:8px;font-weight:700;flex-shrink:0;cursor:pointer"
-              onclick="event.stopPropagation();editHeureTache('${bloc.id}',${taskIdx})">${t.heureDebut}</span>
+            <span style="font-size:11px;font-family:monospace;color:${bloc.textCol};background:${bloc.couleur};padding:2px 7px;border-radius:8px;font-weight:700;flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:rgba(153,53,86,.2)"
+              ontouchend="event.stopPropagation();event.preventDefault();editHeureTache('${bloc.id}',${taskIdx})" onclick="event.stopPropagation();editHeureTache('${bloc.id}',${taskIdx})">${t.heureDebut}</span>
             <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${isDone?'#085041':'#F4C0D1'};background:${isDone?'#9FE1CB':'white'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#085041;flex-shrink:0">${isDone?'✓':''}</div>
             <span style="flex:1;font-size:13px;${isDone?'text-decoration:line-through;color:#aaa':''}">${t.n}</span>
             ${zone?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;font-weight:700;background:${zone.bg};color:${zone.c};flex-shrink:0">${t.zone}</span>`:''}`;
@@ -2416,26 +2417,6 @@ function onTouchEnd(e,blocId){
   renderPlanning();
 }
 
-// MODIFIER HEURE D'UNE TÂCHE
-function editHeureTache(blocId,taskIdx){
-  const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
-  const bloc=planning.blocs.find(b=>b.id===blocId);
-  if(!bloc) return;
-  const task=bloc.tasks[taskIdx];
-  const nouvelleHeure=prompt(`Heure pour "${task.n}" :`,task.heureDebut);
-  if(!nouvelleHeure) return;
-  if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
-  let h=nouvelleHeure;
-  for(let i=taskIdx;i<bloc.tasks.length;i++){
-    bloc.tasks[i].heureDebut=h;
-    h=addMinutes(h,getDuree(bloc.tasks[i].id));
-  }
-  bloc.heureFin=h;
-  // Sync les deux références
-  DB.planning=planning;
-  if(DB.plannings) DB.plannings[TSTR]=planning;
-  sv();renderPlanning();
-}
 
 // MODIFIER HORAIRES TRAVAIL
 function editHoraires(){
