@@ -1582,8 +1582,10 @@ function editHeureTache(blocId,taskIdx){
 }
 
 function saveHeureModal(){
+  console.log('saveHeureModal appelée',heureModalData);
   if(!heureModalData) return;
   const nouvelleHeure=document.getElementById('heure-modal-inp').value;
+  console.log('nouvelle heure:',nouvelleHeure);
   if(!nouvelleHeure){toast('Heure requise');return;}
   const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
   const bloc=planning.blocs.find(b=>b.id===heureModalData.blocId);
