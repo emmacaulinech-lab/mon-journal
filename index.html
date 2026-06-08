@@ -409,6 +409,22 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <button class="btn btn-rose" onclick="saveHeureModal()">✓ Valider</button>
   </div>
 </div>
+
+<!-- POPUP RÉSUMÉ -->
+<div class="modal" id="resume-modal" onclick="if(event.target===this)closeResume()">
+  <div class="modal-box">
+    <div class="modal-title">
+      🌸 On en est où ?
+      <button class="modal-close" onclick="closeResume()">×</button>
+    </div>
+    <div id="resume-content"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+      <button class="btn btn-rose" onclick="decalerTout(60)">⏰ Décaler tout d'1h</button>
+      <button class="btn btn-light" onclick="decalerTout(120)">⏰ Décaler tout de 2h</button>
+      <button class="btn btn-light" onclick="closeResume()">✅ Tout va bien</button>
+    </div>
+  </div>
+</div>
   
 <div class="toast" id="toast"></div>
 
@@ -1716,42 +1732,165 @@ async function initNotifications(){
 }
 
 function scheduleNotifications(){
-  // Sauvegarder les préférences
   if(!DB.notifs) DB.notifs={
     matin:{active:true,heure:'07:00'},
+    midi:{active:true,heure:'10:00'},
+    aprem:{active:true,heure:'14:00'},
     soir:{active:true,heure:'21:30'},
-    rappel:{active:true,heure:'23:00'}
   };
   sv();
-  
-  // Programmer les notifications du jour
+
   const now=new Date();
-  
+
   Object.entries(DB.notifs).forEach(([type,notif])=>{
     if(!notif.active) return;
     const[h,m]=notif.heure.split(':').map(Number);
     const notifTime=new Date();
     notifTime.setHours(h,m,0,0);
-    
-    if(notifTime>now){
-      const delay=notifTime-now;
-      const messages={
-        matin:{title:'🌸 Bonjour Emma !',body:'C\'est l\'heure de ta routine matinale ☀️'},
-        soir:{title:'🌙 Routine du soir',body:'N\'oublie pas ta routine du soir 🌸'},
-        rappel:{title:'⭐ Bilan de la journée',body:'Tu as pensé à valider tes tâches ?'}
-      };
-      
-      setTimeout(()=>{
-        if(Notification.permission==='granted'){
-          new Notification(messages[type].title,{
-            body:messages[type].body,
-            icon:'/mon-journal/icon.png',
-            badge:'/mon-journal/icon.png'
-          });
-        }
-      },delay);
+    if(notifTime<=now) return;
+
+    const delay=notifTime-now;
+    setTimeout(()=>{
+      if(Notification.permission!=='granted') return;
+      // Construire le résumé
+      const resume=buildResume(notifTime);
+      localStorage.setItem('openResume','true');
+      new Notification('🌸 On en est où Emma ?',{
+        body:resume,
+        icon:'/mon-journal/icon.png',
+        tag:'journal-'+type,
+        requireInteraction:false
+      });
+    },delay);
+  });
+}
+
+function buildResume(notifTime){
+  if(!DB.planning||!DB.planning.blocs) return 'Ouvre l\'app pour voir ton planning 🌸';
+
+  const hNow=notifTime.getHours();
+  const mNow=notifTime.getMinutes();
+  const nowMinutes=hNow*60+mNow;
+
+  const enRetard=[];
+  const maintenant=[];
+  const aVenir=[];
+
+  DB.planning.blocs.forEach(bloc=>{
+    bloc.tasks.forEach(t=>{
+      if(!t.heureDebut) return;
+      const[th,tm]=t.heureDebut.split(':').map(Number);
+      const taskMinutes=th*60+tm;
+      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      if(isDone) return;
+
+      if(taskMinutes<nowMinutes-15) enRetard.push(t);
+      else if(taskMinutes<=nowMinutes+30) maintenant.push(t);
+      else if(taskMinutes<=nowMinutes+120) aVenir.push(t);
+    });
+  });
+
+  let lines=[];
+  if(enRetard.length) lines.push(`⚠️ En retard : ${enRetard.slice(0,2).map(t=>t.n.replace(/[^\w\sÀ-ÿ]/g,'')).join(', ')}`);
+  if(maintenant.length) lines.push(`▶️ Maintenant : ${maintenant.slice(0,2).map(t=>t.n.replace(/[^\w\sÀ-ÿ]/g,'')).join(', ')}`);
+  if(aVenir.length) lines.push(`📋 À venir : ${aVenir.slice(0,2).map(t=>t.n.replace(/[^\w\sÀ-ÿ]/g,'')).join(', ')}`);
+  if(!lines.length) lines.push('Tout est à jour 🎉');
+
+  return lines.join('\n');
+}
+
+function openResume(){
+  if(!DB.planning||!DB.planning.blocs) return;
+  const now=new Date();
+  const hNow=now.getHours();
+  const mNow=now.getMinutes();
+  const nowMinutes=hNow*60+mNow;
+
+  const enRetard=[];
+  const maintenant=[];
+  const aVenir=[];
+
+  DB.planning.blocs.forEach(bloc=>{
+    bloc.tasks.forEach(t=>{
+      if(!t.heureDebut) return;
+      const[th,tm]=t.heureDebut.split(':').map(Number);
+      const taskMinutes=th*60+tm;
+      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      if(isDone) return;
+      if(taskMinutes<nowMinutes-15) enRetard.push({...t,bloc:bloc.label});
+      else if(taskMinutes<=nowMinutes+30) maintenant.push({...t,bloc:bloc.label});
+      else if(taskMinutes<=nowMinutes+120) aVenir.push({...t,bloc:bloc.label});
+    });
+  });
+
+  let html='';
+
+  if(enRetard.length){
+    html+=`<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#991B1B;margin-bottom:6px">⚠️ En retard</div>
+      ${enRetard.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #fdf6f9">
+        <span style="font-size:11px;font-family:monospace;color:#991B1B;background:#FEE2E2;padding:2px 6px;border-radius:6px">${t.heureDebut}</span>
+        <span style="font-size:13px;flex:1">${t.n}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  if(maintenant.length){
+    html+=`<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#166534;margin-bottom:6px">▶️ Maintenant</div>
+      ${maintenant.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #fdf6f9">
+        <span style="font-size:11px;font-family:monospace;color:#166534;background:#E1F5EE;padding:2px 6px;border-radius:6px">${t.heureDebut}</span>
+        <span style="font-size:13px;flex:1">${t.n}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  if(aVenir.length){
+    html+=`<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:#1E40AF;margin-bottom:6px">📋 Dans les 2h</div>
+      ${aVenir.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #fdf6f9">
+        <span style="font-size:11px;font-family:monospace;color:#1E40AF;background:#DBEAFE;padding:2px 6px;border-radius:6px">${t.heureDebut}</span>
+        <span style="font-size:13px;flex:1">${t.n}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  if(!html) html=`<div style="text-align:center;padding:20px;font-size:14px">🎉 Tout est à jour !</div>`;
+
+  document.getElementById('resume-content').innerHTML=html;
+  document.getElementById('resume-modal').classList.add('open');
+}
+
+function closeResume(){
+  document.getElementById('resume-modal').classList.remove('open');
+}
+
+function decalerTout(minutes){
+  if(!DB.planning||!DB.planning.blocs) return;
+  const now=new Date();
+  const nowMinutes=now.getHours()*60+now.getMinutes();
+
+  DB.planning.blocs.forEach(bloc=>{
+    bloc.tasks.forEach(t=>{
+      if(!t.heureDebut) return;
+      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      if(isDone) return;
+      const[th,tm]=t.heureDebut.split(':').map(Number);
+      const taskMinutes=th*60+tm;
+      if(taskMinutes>=nowMinutes-15){
+        t.heureDebut=addMinutes(t.heureDebut,minutes);
+      }
+    });
+    // Recalculer heureFin
+    if(bloc.tasks.length){
+      const last=bloc.tasks[bloc.tasks.length-1];
+      bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
     }
   });
+
+  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
+  sv();closeResume();renderPlanning();
+  toast(`⏰ Tout décalé de ${minutes===60?'1h':'2h'} !`);
 }
   
 function showLogin(){
@@ -2747,6 +2886,11 @@ async function init(){
   initLastDates();
   updateTopbar();
   renderAll();
+  // Afficher popup si vient d'une notification
+  if(localStorage.getItem('openResume')==='true'){
+    localStorage.removeItem('openResume');
+    setTimeout(()=>openResume(),1000);
+  }
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
   if(Notification.permission==='granted') scheduleNotifications();
