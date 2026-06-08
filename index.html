@@ -2535,6 +2535,14 @@ function buildBlocs(){
   const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees);
   blocs.push({
     id:'bloc-fin',
+    emoji:'🏠',
+    label:'Fin de journée',
+    heureDebut:heureFinJournee,
+    couleur:'#F0FDF4',
+    bordure:'#9FE1CB',
+    textCol:'#166534',
+    tasks:[...tachesFixesSoir,...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
+  });
 
   // REPAS
   const heureRepas=IS_WORK?'20:30':(DOW===6?'18:30':'19:00');
