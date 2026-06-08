@@ -1732,22 +1732,15 @@ async function initNotifications(){
 }
 
 function scheduleNotifications(){
-  // Annuler l'ancien interval si existe
   if(window._notifInterval) clearInterval(window._notifInterval);
-  
-  window._notifInterval=setInterval(()=>{
   if(!DB.notifs) DB.notifs={active:true};
   sv();
 
-  // Vérifier toutes les 15 minutes
-  setInterval(()=>{
+  window._notifInterval=setInterval(()=>{
     if(Notification.permission!=='granted') return;
     if(!DB.planning||!DB.planning.blocs) return;
-
     const now=new Date();
     const nowMinutes=now.getHours()*60+now.getMinutes();
-
-    // Compter les tâches en retard
     let enRetard=0;
     DB.planning.blocs.forEach(bloc=>{
       bloc.tasks.forEach(t=>{
@@ -1755,12 +1748,9 @@ function scheduleNotifications(){
         const isDone=DB.planning.vs&&DB.planning.vs[t.id];
         if(isDone) return;
         const[th,tm]=t.heureDebut.split(':').map(Number);
-        const taskMinutes=th*60+tm;
-        if(taskMinutes<nowMinutes-15) enRetard++;
+        if(th*60+tm<nowMinutes-15) enRetard++;
       });
     });
-
-    // Notifier si +3 tâches en retard
     if(enRetard>=3){
       localStorage.setItem('openResume','true');
       const resume=buildResume(now);
@@ -1770,7 +1760,7 @@ function scheduleNotifications(){
         requireInteraction:false
       });
     }
-  }, 15*60*1000);
+  },15*60*1000);
 }
 
 function buildResume(notifTime){
