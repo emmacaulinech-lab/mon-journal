@@ -2679,7 +2679,8 @@ function renderPlanning(){
     const[th,tm]=t.heureDebut.split(':').map(Number);
     return th*60+tm<nowMinutes-15;
   }).length;
-  const reportees=Object.keys(DB.hist||{}).filter(d=>d!==TSTR).reduce((acc,d)=>{
+  // Tâches reportées depuis aujourd'hui vers un jour futur
+  const reportees=Object.keys(DB.hist||{}).filter(d=>d>TSTR).reduce((acc,d)=>{
     const vs=DB.hist[d]?.vs||{};
     return acc+Object.values(vs).filter(Boolean).length;
   },0);
