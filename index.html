@@ -1875,27 +1875,22 @@ function decalerTout(minutes){
   const nowMinutes=now.getHours()*60+now.getMinutes();
 
   DB.planning.blocs.forEach(bloc=>{
-    // Décaler aussi l'heure de début du bloc si pas encore passé
-    if(bloc.heureDebut){
-      const[bh,bm]=bloc.heureDebut.split(':').map(Number);
-      const blocMinutes=bh*60+bm;
-      if(blocMinutes>=nowMinutes-15){
-        bloc.heureDebut=addMinutes(bloc.heureDebut,minutes);
-      }
-    }
-    bloc.tasks.forEach(t=>{
+    let prevHeure=null;
+    bloc.tasks.forEach((t,i)=>{
       if(!t.heureDebut) return;
       const isDone=DB.planning.vs&&DB.planning.vs[t.id];
-      if(isDone) return;
       const[th,tm]=t.heureDebut.split(':').map(Number);
       const taskMinutes=th*60+tm;
-      if(taskMinutes>=nowMinutes-15){
+      
+      if(!isDone&&taskMinutes>=nowMinutes-15){
+        // Décaler cette tâche
         t.heureDebut=addMinutes(t.heureDebut,minutes);
       }
     });
+    // Recalculer heureFin sans toucher aux heures des tâches
     if(bloc.tasks.length){
       const last=bloc.tasks[bloc.tasks.length-1];
-      bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
+      if(last.heureDebut) bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
     }
   });
 
