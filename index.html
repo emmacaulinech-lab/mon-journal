@@ -2693,6 +2693,12 @@ function renderPlanning(){
       if(total===0){
         content.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:#aaa;font-style:italic">Aucune tâche prévue 🎉</div>`;
       } else {
+        // Trier les tâches par heure
+      bloc.tasks.sort((a,b)=>{
+        if(!a.heureDebut) return 1;
+        if(!b.heureDebut) return -1;
+        return a.heureDebut.localeCompare(b.heureDebut);
+      });
         bloc.tasks.forEach((t,taskIdx)=>{
           const isDone=DB.planning.vs&&DB.planning.vs[t.id];
           const zone=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
