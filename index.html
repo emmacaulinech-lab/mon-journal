@@ -268,6 +268,7 @@ textarea{resize:none;min-height:80px;line-height:1.6}
       <button class="btn btn-light" style="padding:8px 14px;font-size:13px" onclick="chW(1)">Suiv. →</button>
     </div>
     <div id="wk-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+    <div id="wk-graph" style="margin-top:14px"></div>
 
     <!-- Détail jour sélectionné -->
     <div id="wk-detail" style="margin-top:14px"></div>
@@ -515,44 +516,39 @@ function renderWeek(){
     const body=document.createElement('div');
     body.style.cssText='padding:4px 3px;min-height:50px';
 
-    if(h){
-      if(h.mood){
+    if(h||ds===TSTR){
+      const data=ds===TSTR?{mood:DB.mood,vs:DB.vs}:h;
+      
+      if(data.mood){
         const m=document.createElement('div');
         m.style.cssText='font-size:14px;text-align:center;margin-bottom:3px';
-        m.textContent=h.mood;body.appendChild(m);
+        m.textContent=data.mood;body.appendChild(m);
       }
-      if(h.vs){
-        const done=Object.values(h.vs).filter(Boolean).length;
-        const total=Object.keys(h.vs).length;
+
+      if(data.vs){
+        const done=Object.values(data.vs).filter(Boolean).length;
+        const total=Object.keys(data.vs).length;
         if(total>0){
+          const pct=Math.round(done/total*100);
+          // % texte
           const p=document.createElement('div');
-          p.style.cssText='font-size:8px;text-align:center;color:#993556;font-weight:700';
-          p.textContent=`${done}/${total}`;body.appendChild(p);
-          // Mini barre
+          p.style.cssText=`font-size:9px;text-align:center;font-weight:700;color:${pct>=80?'#085041':pct>=50?'#854F0B':'#991B1B'}`;
+          p.textContent=pct+'%';body.appendChild(p);
+          // Barre progression
           const bar=document.createElement('div');
-          bar.style.cssText='height:3px;background:#F4C0D1;border-radius:99px;margin:2px 2px 0;overflow:hidden';
+          bar.style.cssText='height:3px;background:#F4C0D1;border-radius:99px;margin:2px 3px;overflow:hidden';
           const fill=document.createElement('div');
-          fill.style.cssText=`height:100%;background:#993556;border-radius:99px;width:${Math.round(done/total*100)}%`;
+          fill.style.cssText=`height:100%;background:${pct>=80?'#085041':pct>=50?'#FAC775':'#F09595'};border-radius:99px;width:${pct}%`;
           bar.appendChild(fill);body.appendChild(bar);
         }
       }
-    } else if(ds===TSTR){
-      // Jour actuel — montrer progression
-      const allVs=DB.vs||{};
-      const done=Object.values(allVs).filter(Boolean).length;
-      const total=Object.keys(allVs).length;
-      if(total>0){
-        const p=document.createElement('div');
-        p.style.cssText='font-size:8px;text-align:center;color:#993556;font-weight:700';
-        p.textContent=`${done}/${total}`;body.appendChild(p);
-      } else {
-        const dot=document.createElement('div');
-        dot.style.cssText='font-size:12px;text-align:center;color:#F4C0D1';
-        dot.textContent='·';body.appendChild(dot);
-      }
+    } else if(daysUntil>0){
+      const dot=document.createElement('div');
+      dot.style.cssText='font-size:10px;text-align:center;color:#F4C0D1;margin-top:8px';
+      dot.textContent='·';body.appendChild(dot);
     } else {
       const dot=document.createElement('div');
-      dot.style.cssText='font-size:12px;text-align:center;color:#F4C0D1;margin-top:8px';
+      dot.style.cssText='font-size:10px;text-align:center;color:#eee;margin-top:8px';
       dot.textContent='·';body.appendChild(dot);
     }
 
@@ -2142,6 +2138,82 @@ function checkIntCollapse(){
   collapsed.style.display='flex';
   if(text) text.textContent=DB.intention;
 }  
+
+function renderWeekGraph(){
+  const el=document.getElementById('wk-graph');
+  if(!el) return;
+
+  const mon=new Date(TODAY);
+  mon.setDate(TODAY.getDate()-((TODAY.getDay()||7)-1)+wOff*7);
+  const days=Array.from({length:7},(_,i)=>{
+    const d=new Date(mon);d.setDate(mon.getDate()+i);return d;
+  });
+
+  // Données
+  const data=days.map(day=>{
+    const ds=day.toISOString().split('T')[0];
+    const isT=ds===TSTR;
+    const h=isT?{mood:DB.mood,vs:DB.vs}:DB.hist&&DB.hist[ds];
+    if(!h) return{ds,pct:null,mood:null};
+    const done=h.vs?Object.values(h.vs).filter(Boolean).length:0;
+    const total=h.vs?Object.keys(h.vs).length:0;
+    return{
+      ds,
+      pct:total?Math.round(done/total*100):null,
+      mood:h.mood,
+      done,total
+    };
+  });
+
+  const moodToVal={'😡':1,'😢':2,'😐':3,'😊':4,'🤩':5};
+  const maxH=80;
+
+  let html=`<div class="card" style="padding:14px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#D4537E;margin-bottom:12px">📊 Progression de la semaine</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:${maxH}px;margin-bottom:8px">`;
+
+  data.forEach((d,i)=>{
+    const day=days[i];
+    const isT=d.ds===TSTR;
+    const h=d.pct!==null?d.pct:0;
+    const barH=Math.max(4,Math.round(h/100*maxH));
+    const color=h>=80?'#085041':h>=50?'#993556':'#F4C0D1';
+    const isFuture=d.ds>TSTR;
+
+    html+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+      ${d.mood?`<div style="font-size:12px">${d.mood}</div>`:`<div style="font-size:12px;color:transparent">·</div>`}
+      <div style="flex:1;width:100%;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${isFuture?4:barH}px;background:${isFuture?'#F4C0D1':color};border-radius:4px 4px 0 0;transition:height .4s"></div>
+      </div>
+    </div>`;
+  });
+
+  html+=`</div>
+    <div style="display:flex;gap:4px">
+      ${days.map((day,i)=>{
+        const isT=days[i].toISOString().split('T')[0]===TSTR;
+        return`<div style="flex:1;text-align:center;font-size:9px;font-weight:${isT?'700':'400'};color:${isT?'#993556':'#aaa'}">${DSH[day.getDay()]}</div>`;
+      }).join('')}
+    </div>
+    ${data.filter(d=>d.pct!==null&&d.ds<=TSTR).length>0?`
+    <div style="display:flex;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid #fdf6f9">
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#993556">${Math.round(data.filter(d=>d.pct!==null&&d.ds<=TSTR).reduce((s,d)=>s+d.pct,0)/data.filter(d=>d.pct!==null&&d.ds<=TSTR).length)}%</div>
+        <div style="font-size:10px;color:#aaa">Moy. semaine</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#993556">${Math.max(...data.filter(d=>d.pct!==null).map(d=>d.pct))}%</div>
+        <div style="font-size:10px;color:#aaa">Meilleur jour</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#993556">${data.filter(d=>d.done>0).length}</div>
+        <div style="font-size:10px;color:#aaa">Jours actifs</div>
+      </div>
+    </div>`:''}
+  </div>`;
+
+  el.innerHTML=html;
+}  
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -3152,7 +3224,7 @@ function closeModal(id,e){
 function goPane(n){
   document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('active',i===n));
   document.querySelectorAll('.nav-item').forEach((b,i)=>b.classList.toggle('active',i===n));
-  if(n===1) renderWeek();
+  if(n===1){renderWeek();renderWeekGraph();}
   if(n===3) renderTasksPane();
 }
 
