@@ -1874,20 +1874,41 @@ function decalerTout(minutes){
   const now=new Date();
   const nowMinutes=now.getHours()*60+now.getMinutes();
 
+  // Trouver la première tâche en retard
+  let premiereEnRetardMinutes=null;
   DB.planning.blocs.forEach(bloc=>{
-    let prevHeure=null;
-    bloc.tasks.forEach((t,i)=>{
+    bloc.tasks.forEach(t=>{
       if(!t.heureDebut) return;
       const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      if(isDone) return;
       const[th,tm]=t.heureDebut.split(':').map(Number);
       const taskMinutes=th*60+tm;
-      
-      if(!isDone&&taskMinutes>=nowMinutes-15){
-        // Décaler cette tâche
+      if(taskMinutes<nowMinutes-5){
+        if(premiereEnRetardMinutes===null||taskMinutes<premiereEnRetardMinutes){
+          premiereEnRetardMinutes=taskMinutes;
+        }
+      }
+    });
+  });
+
+  if(premiereEnRetardMinutes===null){
+    toast('Aucune tâche en retard !');
+    closeResume();
+    return;
+  }
+
+  // Décaler toutes les tâches non faites à partir de la première en retard
+  DB.planning.blocs.forEach(bloc=>{
+    bloc.tasks.forEach(t=>{
+      if(!t.heureDebut) return;
+      const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+      if(isDone) return;
+      const[th,tm]=t.heureDebut.split(':').map(Number);
+      const taskMinutes=th*60+tm;
+      if(taskMinutes>=premiereEnRetardMinutes){
         t.heureDebut=addMinutes(t.heureDebut,minutes);
       }
     });
-    // Recalculer heureFin sans toucher aux heures des tâches
     if(bloc.tasks.length){
       const last=bloc.tasks[bloc.tasks.length-1];
       if(last.heureDebut) bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
@@ -1896,7 +1917,7 @@ function decalerTout(minutes){
 
   if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();closeResume();renderPlanning();
-  toast(`⏰ Tout décalé de ${minutes===60?'1h':'2h'} !`);
+  toast(`⏰ Tâches en retard décalées de ${minutes===60?'1h':'2h'} !`);
 }
   
 function showLogin(){
