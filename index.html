@@ -374,6 +374,8 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <div class="report-title" id="report-task-name">Tâche</div>
     <div class="report-opts">
       <button class="report-opt" onclick="validerTask()">✅ Valider — c'est fait !</button>
+      <button class="report-opt" onclick="validerMaintenant()">✅ Fait maintenant — <span id="heure-maintenant"></span></button>
+      <button class="report-opt" onclick="faireMaintenent()">▶️ À faire maintenant</button>
       <button class="report-opt" onclick="showDeplacerBloc()">📦 Déplacer vers un autre bloc</button>
       <button class="report-opt" onclick="reporterTask(1)">➡️ Demain</button>
       <button class="report-opt" onclick="reporterTask(2)">📅 Dans 2 jours</button>
@@ -1994,6 +1996,64 @@ function deplacerVersBloc(targetBlocId){
   sv();closeReportModal();renderPlanning();
   toast(`✅ Tâche déplacée vers ${targetBloc.label} !`);
 }
+
+function validerMaintenant(){
+  if(!currentTaskAction) return;
+  const now=new Date();
+  const heureNow=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  // Marquer comme validée
+  if(!DB.planning.vs) DB.planning.vs={};
+  DB.planning.vs[currentTaskAction.taskId]=true;
+
+  // Mettre à jour l'heure de fin = maintenant
+  const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
+  if(bloc){
+    const task=bloc.tasks.find(t=>t.id===currentTaskAction.taskId);
+    if(task) task.heureFin=heureNow;
+  }
+
+  // Sauvegarder dans l'historique
+  const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
+  if(!DB.hist) DB.hist={};
+  if(!DB.hist[TSTR]) DB.hist[TSTR]={vs:{}};
+  if(!DB.hist[TSTR].vs) DB.hist[TSTR].vs={};
+  DB.hist[TSTR].vs['j'+realId]=true;
+
+  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
+  sv();closeReportModal();renderPlanning();
+  toast('✅ Validée à '+heureNow+' !');
+}
+
+function faireMaintenent(){
+  if(!currentTaskAction) return;
+  const now=new Date();
+  const heureNow=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
+  if(!bloc) return;
+
+  const taskIdx=bloc.tasks.findIndex(t=>t.id===currentTaskAction.taskId);
+  if(taskIdx===-1) return;
+
+  // Mettre l'heure de début à maintenant
+  bloc.tasks[taskIdx].heureDebut=heureNow;
+
+  // Recalculer les heures des tâches suivantes
+  let h=heureNow;
+  for(let i=taskIdx;i<bloc.tasks.length;i++){
+    const isDone=DB.planning.vs&&DB.planning.vs[bloc.tasks[i].id];
+    if(!isDone){
+      bloc.tasks[i].heureDebut=h;
+      h=addMinutes(h,getDuree(bloc.tasks[i].id));
+    }
+  }
+  bloc.heureFin=h;
+
+  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
+  sv();closeReportModal();renderPlanning();
+  toast('▶️ À faire maintenant — '+heureNow+' !');
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -2792,6 +2852,12 @@ function openReportModal(){
     return;
   }
   document.getElementById('report-task-name').textContent=t.taskName;
+  // Afficher l'heure actuelle
+  const now=new Date();
+  const heureNow=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const el=document.getElementById('heure-maintenant');
+  if(el) el.textContent=heureNow;
+  document.getElementById('deplacer-blocs').style.display='none';
   document.getElementById('report-modal').classList.add('open');
 }
 
