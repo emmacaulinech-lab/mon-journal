@@ -502,6 +502,7 @@ function renderWeek(){
     const isT=ds===TSTR;
     const h=DB.hist&&DB.hist[ds];
     const isSel=selectedDay===ds;
+    const daysUntil=Math.round((new Date(ds+'T12:00:00')-TODAY)/86400000);
 
     const col=document.createElement('div');
     col.style.cssText=`border:1.5px solid ${isSel?'#993556':isT?'#F4C0D1':'#f0e8ef'};border-radius:12px;overflow:hidden;cursor:pointer;background:${isSel?'#FBEAF0':isT?'#fff5f8':'white'}`;
