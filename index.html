@@ -1597,6 +1597,7 @@ function saveHeureModal(){
     h=addMinutes(h,getDuree(bloc.tasks[i].id));
   }
   bloc.heureFin=h;
+  console.log('première tâche après modif:',bloc.tasks[0].heureDebut);
   DB.planning=planning;
   if(DB.plannings) DB.plannings[TSTR]=planning;
   sv();closeHeureModal();renderPlanning();
