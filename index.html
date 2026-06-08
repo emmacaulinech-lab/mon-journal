@@ -2782,15 +2782,10 @@ function reporterTask(jours){
 
 function resetPlanning(){
   if(!confirm('Regénérer le planning du jour ?')) return;
+  if(DB.plannings) delete DB.plannings[TSTR];
   DB.planning=null;
   openBlocs=new Set(['bloc-matin']);
-  sv();renderPlanning();
-}
-
-function resetPlanning(){
-  if(!confirm('Regénérer le planning du jour ?')) return;
-  DB.planning=null;
-  sv();renderPlanning();
+  sv();buildPlanning();renderPlanning();
 }
 
 function getRoutineMatin(){
