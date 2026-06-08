@@ -463,6 +463,22 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     </div>
   </div>
 </div>
+
+<!-- MODAL BILAN JOURNÉE -->
+<div class="modal" id="bilan-modal">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:40px;margin-bottom:8px">🌸</div>
+      <div style="font-size:18px;font-weight:700;color:#993556">Bilan du jour</div>
+      <div style="font-size:12px;color:#D4537E" id="bilan-date"></div>
+    </div>
+    <div id="bilan-content"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+      <button class="btn btn-rose" onclick="confirmerFinJournee()">✨ Terminer ma journée</button>
+      <button class="btn btn-light" onclick="document.getElementById('bilan-modal').classList.remove('open')">← Continuer</button>
+    </div>
+  </div>
+</div>  
   
 <div class="toast" id="toast"></div>
 
@@ -3353,41 +3369,86 @@ function toast(msg){
 }
 
 async function finishDay(){
-  // Calculer le bilan
   const allTasks=DB.planning?.blocs?.flatMap(b=>b.tasks)||[];
   const total=allTasks.length;
   const faites=Object.values(DB.planning?.vs||{}).filter(v=>v===true).length;
   const pct=total?Math.round(faites/total*100):0;
-  const mood=DB.mood||'—';
-  const grats=(DB.grat||[]).filter(g=>g).length;
+  const mood=DB.mood||null;
+  const grats=(DB.grat||[]).filter(g=>g);
 
-  const msg=`Bilan du ${TODAY.getDate()} ${MOIS[TODAY.getMonth()]} :\n\n`+
-    `✅ ${faites}/${total} tâches (${pct}%)\n`+
-    `😊 Humeur : ${mood}\n`+
-    `🌸 Gratitudes : ${grats}/3\n`+
-    (DB.intention?`🎯 Intention : ${DB.intention}\n`:'')+
-    (DB.q1?`⭐ ${DB.q1}\n`:'')+
-    (DB.q2?`💪 ${DB.q2}\n`:'')+
-    `\nTerminer la journée ?`;
+  // Remplir le modal
+  document.getElementById('bilan-date').textContent=
+    `${JOURS[DOW]} ${TODAY.getDate()} ${MOIS[TODAY.getMonth()]}`;
 
-  if(!confirm(msg)) return;
+  let html='';
+
+  // Progression
+  html+=`<div style="background:#FBEAF0;border-radius:14px;padding:14px;margin-bottom:10px;text-align:center">
+    <div style="font-size:32px;font-weight:700;color:#993556">${pct}%</div>
+    <div style="font-size:12px;color:#D4537E;margin-bottom:8px">${faites} tâches accomplies sur ${total}</div>
+    <div style="height:8px;background:#F4C0D1;border-radius:99px;overflow:hidden">
+      <div style="height:100%;background:linear-gradient(90deg,#993556,#D4537E);border-radius:99px;width:${pct}%;transition:width .5s"></div>
+    </div>
+  </div>`;
+
+  // Humeur
+  if(mood){
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:white;border:1.5px solid #F4C0D1;border-radius:12px;margin-bottom:8px">
+      <span style="font-size:24px">${mood}</span>
+      <span style="font-size:13px;color:#2d2d2d;font-weight:600">Humeur du jour</span>
+    </div>`;
+  }
+
+  // Gratitudes
+  if(grats.length){
+    html+=`<div style="background:white;border:1.5px solid #FAC775;border-radius:12px;padding:12px 14px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:#854F0B;margin-bottom:8px">🌸 Gratitudes</div>
+      ${grats.map(g=>`<div style="font-size:12px;color:#2d2d2d;padding:4px 0;border-bottom:1px solid #fdf6f9">${g}</div>`).join('')}
+    </div>`;
+  }
+
+  // Intention
+  if(DB.intention){
+    html+=`<div style="background:white;border:1.5px solid #F4C0D1;border-radius:12px;padding:10px 14px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:4px">🎯 Intention</div>
+      <div style="font-size:13px;color:#2d2d2d">${DB.intention}</div>
+    </div>`;
+  }
+
+  // Message encourageant
+  const msg=pct>=80?'Quelle journée productive ! Tu peux être fière de toi 💪':
+    pct>=50?'Belle journée, tu avances bien 🌸':
+    'Chaque jour compte, demain sera encore mieux 🌟';
+  html+=`<div style="text-align:center;font-size:13px;color:#993556;font-style:italic;padding:10px">${msg}</div>`;
+
+  document.getElementById('bilan-content').innerHTML=html;
+  document.getElementById('bilan-modal').classList.add('open');
+}
+
+async function confirmerFinJournee(){
+  document.getElementById('bilan-modal').classList.remove('open');
+
   // Sauvegarder l'historique
   if(!DB.hist) DB.hist={};
   DB.hist[TSTR]={
     mood:DB.mood,
     grat:[...(DB.grat||[])],
-    vs:{...(DB.vs||{})},
+    vs:{...(DB.planning?.vs||{})},
     q1:DB.q1,q2:DB.q2,q3:DB.q3,
     intention:DB.intention
   };
-  // Reset du jour
-  DB.mood='';DB.grat=['','',''];DB.vs={};
+
+  // Reset
+  DB.mood='';DB.grat=['','',''];
   DB.q1='';DB.q2='';DB.q3='';DB.intention='';
+  DB.planning=null;
+  if(DB.plannings) delete DB.plannings[TSTR];
   DB.lo=TSTR;
+
   sv();
   renderAll();
-  toast('🌸 Bonne nuit Emma !');
   goPane(0);
+  toast('🌸 Bonne nuit Emma !');
 }
 
 // ═══════════════════════════════════════
