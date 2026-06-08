@@ -1875,6 +1875,14 @@ function decalerTout(minutes){
   const nowMinutes=now.getHours()*60+now.getMinutes();
 
   DB.planning.blocs.forEach(bloc=>{
+    // Décaler aussi l'heure de début du bloc si pas encore passé
+    if(bloc.heureDebut){
+      const[bh,bm]=bloc.heureDebut.split(':').map(Number);
+      const blocMinutes=bh*60+bm;
+      if(blocMinutes>=nowMinutes-15){
+        bloc.heureDebut=addMinutes(bloc.heureDebut,minutes);
+      }
+    }
     bloc.tasks.forEach(t=>{
       if(!t.heureDebut) return;
       const isDone=DB.planning.vs&&DB.planning.vs[t.id];
@@ -1885,7 +1893,6 @@ function decalerTout(minutes){
         t.heureDebut=addMinutes(t.heureDebut,minutes);
       }
     });
-    // Recalculer heureFin
     if(bloc.tasks.length){
       const last=bloc.tasks[bloc.tasks.length-1];
       bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
