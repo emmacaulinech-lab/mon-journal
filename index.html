@@ -2950,6 +2950,23 @@ async function init(){
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
   if(Notification.permission==='granted') scheduleNotifications();
+  // Ouvrir popup automatiquement si 3+ tâches en retard
+  setTimeout(()=>{
+    if(!DB.planning||!DB.planning.blocs) return;
+    const now=new Date();
+    const nowMinutes=now.getHours()*60+now.getMinutes();
+    let enRetard=0;
+    DB.planning.blocs.forEach(bloc=>{
+      bloc.tasks.forEach(t=>{
+        if(!t.heureDebut) return;
+        const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+        if(isDone) return;
+        const[th,tm]=t.heureDebut.split(':').map(Number);
+        if(th*60+tm<nowMinutes-15) enRetard++;
+      });
+    });
+    if(enRetard>=3) openResume();
+  },2000);
   
   // Relancer les notifications quand tu reviens sur l'app
   document.addEventListener('visibilitychange',()=>{
