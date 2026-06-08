@@ -2157,7 +2157,10 @@ function renderWeekGraph(){
     const h=isT?{mood:DB.mood,vs:DB.planning?.vs||{}}:DB.hist&&DB.hist[ds];
     if(!h) return{ds,pct:null,mood:null};
     const done=h.vs?Object.values(h.vs).filter(v=>v===true).length:0;
-    const total=h.vs?Object.values(h.vs).length:0;
+    // Total = toutes les tâches du planning si aujourd'hui
+    const total=isT
+      ?(DB.planning?.blocs?.flatMap(b=>b.tasks).length||0)
+      :(h.vs?Object.values(h.vs).length:0);
     return{
       ds,
       pct:total?Math.round(done/total*100):null,
