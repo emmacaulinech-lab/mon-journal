@@ -387,6 +387,21 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <div id="add-tache-list"></div>
   </div>
 </div>
+
+<!-- MODAL MODIFIER HEURE -->
+<div class="modal" id="heure-modal" onclick="if(event.target===this)closeHeureModal()">
+  <div class="modal-box">
+    <div class="modal-title">
+      ⏰ Modifier l'heure
+      <button class="modal-close" onclick="closeHeureModal()">×</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:#D4537E;margin-bottom:8px" id="heure-modal-task"></div>
+      <input type="time" id="heure-modal-inp" style="width:100%;padding:12px;border:1.5px solid #F4C0D1;border-radius:12px;font-size:18px;font-family:inherit;text-align:center"/>
+    </div>
+    <button class="btn btn-rose" onclick="saveHeureModal()">✓ Valider</button>
+  </div>
+</div>
   
 <div class="toast" id="toast"></div>
 
@@ -1552,24 +1567,41 @@ function finirLivre(){
   toast('🎉 Félicitations, livre terminé !');
 }
 
-function editHeureTacheDetail(ds,blocId,taskIdx){
-  if(!DB.plannings||!DB.plannings[ds]) return;
-  const bloc=DB.plannings[ds].blocs.find(b=>b.id===blocId);
+let heureModalData=null;
+
+function editHeureTache(blocId,taskIdx){
+  const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
+  const bloc=planning.blocs.find(b=>b.id===blocId);
   if(!bloc) return;
   const task=bloc.tasks[taskIdx];
-  const nouvelleHeure=prompt(`Heure pour "${task.n}" :`,task.heureDebut||'07:00');
-  if(!nouvelleHeure) return;
-  if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
+  heureModalData={blocId,taskIdx};
+  document.getElementById('heure-modal-task').textContent=task.n;
+  document.getElementById('heure-modal-inp').value=task.heureDebut||'07:00';
+  document.getElementById('heure-modal').classList.add('open');
+}
 
-  // Recalculer les heures à partir de cette tâche
+function saveHeureModal(){
+  if(!heureModalData) return;
+  const nouvelleHeure=document.getElementById('heure-modal-inp').value;
+  if(!nouvelleHeure){toast('Heure requise');return;}
+  const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
+  const bloc=planning.blocs.find(b=>b.id===heureModalData.blocId);
+  if(!bloc) return;
   let h=nouvelleHeure;
-  for(let i=taskIdx;i<bloc.tasks.length;i++){
+  for(let i=heureModalData.taskIdx;i<bloc.tasks.length;i++){
     bloc.tasks[i].heureDebut=h;
     h=addMinutes(h,getDuree(bloc.tasks[i].id));
   }
   bloc.heureFin=h;
-  sv();renderDayDetail(ds);
+  DB.planning=planning;
+  if(DB.plannings) DB.plannings[TSTR]=planning;
+  sv();closeHeureModal();renderPlanning();
   toast('✓ Heure mise à jour !');
+}
+
+function closeHeureModal(){
+  document.getElementById('heure-modal').classList.remove('open');
+  heureModalData=null;
 }
 
 let addTacheBlocId=null;
