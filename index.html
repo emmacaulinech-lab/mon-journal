@@ -2235,7 +2235,11 @@ function calcHeures(blocs){
 }
 
 function renderPlanning(){
-  buildPlanning();
+  // Ne pas rebuilder si déjà généré aujourd'hui
+  if(!DB.planning||DB.planning.date!==TSTR){
+    buildPlanning();
+  }
+  DB.planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
   calcHeures(DB.planning.blocs);
   const container=document.getElementById('planning-container');
   if(!container) return;
