@@ -2456,19 +2456,16 @@ function buildPlanning(){
 function calcHeures(blocs){
   blocs.forEach(bloc=>{
     if(!bloc.heureDebut) bloc.heureDebut='07:00';
-    // Si les tâches ont déjà des heures définies, recalculer seulement heureFin
-    const hasCustomHeures=bloc.tasks.length>0&&bloc.tasks[0].heureDebut;
-    if(hasCustomHeures){
-      let h=bloc.tasks[0].heureDebut;
-      bloc.tasks.forEach(t=>{
-        if(!t.heureDebut) t.heureDebut=h;
-        h=addMinutes(t.heureDebut,getDuree(t.id));
-      });
-      bloc.heureFin=h||'23:59';
+    // Toujours respecter les heures déjà définies sur les tâches
+    // Recalculer seulement heureFin
+    if(bloc.tasks.length>0&&bloc.tasks[0].heureDebut){
+      const last=bloc.tasks[bloc.tasks.length-1];
+      bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
     } else {
+      // Pas d'heures définies → calculer depuis heureDebut du bloc
       let h=bloc.heureDebut;
       bloc.tasks.forEach(t=>{
-        if(!h||typeof h!=='string'||!h.includes(':')) h='07:00';
+        if(!h||!h.includes(':')) h='07:00';
         t.heureDebut=h;
         h=addMinutes(h,getDuree(t.id));
       });
