@@ -518,7 +518,7 @@ function renderWeek(){
     body.style.cssText='padding:4px 3px;min-height:50px';
 
     if(h||ds===TSTR){
-      const data=ds===TSTR?{mood:DB.mood,vs:DB.vs}:h;
+      const data=ds===TSTR?{mood:DB.mood,vs:DB.planning?.vs||{}}:h;
       
       if(data.mood){
         const m=document.createElement('div');
@@ -2154,7 +2154,7 @@ function renderWeekGraph(){
   const data=days.map(day=>{
     const ds=day.toISOString().split('T')[0];
     const isT=ds===TSTR;
-    const h=isT?{mood:DB.mood,vs:DB.vs}:DB.hist&&DB.hist[ds];
+    const h=isT?{mood:DB.mood,vs:DB.planning?.vs||{}}:DB.hist&&DB.hist[ds];
     if(!h) return{ds,pct:null,mood:null};
     const done=h.vs?Object.values(h.vs).filter(Boolean).length:0;
     const total=h.vs?Object.keys(h.vs).length:0;
