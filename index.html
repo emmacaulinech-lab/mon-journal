@@ -1347,7 +1347,9 @@ function renderTasksPane(){
   const zones=[...new Set([...ALL_TASKS.map(t=>t.z),...(DB.customTasks||[]).map(t=>t.z)])].sort();
   const zf=document.getElementById('zone-filters');
   if(zf){
-    zf.innerHTML=`<button onclick="filterZone(null)" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${!activeZone?'#993556':'#F4C0D1'};background:${!activeZone?'#FBEAF0':'white'};color:${!activeZone?'#993556':'#aaa'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Toutes</button>`+
+    const nbRetard=allT.filter(t=>t.f&&daysSince(getLastDone('j'+t.id))>=t.f).length;
+  zf.innerHTML=`<button onclick="filterZone(null)" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${!activeZone?'#993556':'#F4C0D1'};background:${!activeZone?'#FBEAF0':'white'};color:${!activeZone?'#993556':'#aaa'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Toutes</button>
+  <button onclick="filterZone('retard')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${activeZone==='retard'?'#991B1B':'#FECACA'};background:${activeZone==='retard'?'#FEE2E2':'white'};color:${activeZone==='retard'?'#991B1B':'#F09595'};font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">⚠️ En retard (${nbRetard})</button>`+
     zones.map(z=>{
       const col=ZCOL[z]||ZCOL.Perso;
       const active=activeZone===z;
@@ -1357,7 +1359,9 @@ function renderTasksPane(){
 
   // Liste des tâches
   const allT=[...ALL_TASKS,...(DB.customTasks||[])];
-  const filtered=activeZone?allT.filter(t=>t.z===activeZone):allT;
+  const filtered=activeZone==='retard'
+    ?allT.filter(t=>t.f&&daysSince(getLastDone('j'+t.id))>=t.f)
+    :activeZone?allT.filter(t=>t.z===activeZone):allT;
 
   // Grouper par zone
   const byZone={};
@@ -1390,7 +1394,7 @@ function renderTasksPane(){
           <div style="font-size:13px;font-weight:500">${t.n}</div>
           <div style="font-size:10px;color:#aaa;margin-top:2px">
             ${t.f?`Tous les ${t.f}j`:'Ponctuel'} · 
-            ${last?`Dernière fois : ${last}`:'Jamais fait'}
+            ${last?`Il y a ${daysSince(last)}j (${last})`:'Jamais fait'}
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
