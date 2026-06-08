@@ -1586,9 +1586,10 @@ function saveHeureModal(){
   if(!heureModalData) return;
   const nouvelleHeure=document.getElementById('heure-modal-inp').value;
   console.log('nouvelle heure:',nouvelleHeure);
-  if(!nouvelleHeure){toast('Heure requise');return;}
   const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
+  console.log('planning trouvé:',planning?.date,'blocs:',planning?.blocs?.map(b=>b.id));
   const bloc=planning.blocs.find(b=>b.id===heureModalData.blocId);
+  console.log('bloc trouvé:',bloc?.id);
   if(!bloc) return;
   let h=nouvelleHeure;
   for(let i=heureModalData.taskIdx;i<bloc.tasks.length;i++){
