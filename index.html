@@ -174,31 +174,55 @@ textarea{resize:none;min-height:80px;line-height:1.6}
   <div class="pane active" id="pane0">
 
     <!-- Humeur -->
-    <div class="slbl" style="margin-top:8px">😊 Comment tu te sens ?</div>
-    <div class="card">
-      <div class="mood-row">
-        <button class="mood-btn" onclick="setMood(this,'😡')">😡</button>
-        <button class="mood-btn" onclick="setMood(this,'😢')">😢</button>
-        <button class="mood-btn" onclick="setMood(this,'😐')">😐</button>
-        <button class="mood-btn" onclick="setMood(this,'😊')">😊</button>
-        <button class="mood-btn" onclick="setMood(this,'🤩')">🤩</button>
+    <div class="card" id="mood-card" style="margin-bottom:14px">
+      <div id="mood-collapsed" style="display:none;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="toggleCard('mood')">
+        <span style="font-size:22px" id="mood-emoji-display"></span>
+        <span style="font-size:13px;color:#993556;font-weight:600">Humeur du jour</span>
+        <span style="margin-left:auto;font-size:12px;color:#aaa">✏️</span>
+      </div>
+      <div id="mood-expanded">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#D4537E;padding:12px 14px 8px">😊 Comment tu te sens ?</div>
+        <div class="mood-row">
+          <button class="mood-btn" onclick="setMood(this,'😡')">😡</button>
+          <button class="mood-btn" onclick="setMood(this,'😢')">😢</button>
+          <button class="mood-btn" onclick="setMood(this,'😐')">😐</button>
+          <button class="mood-btn" onclick="setMood(this,'😊')">😊</button>
+          <button class="mood-btn" onclick="setMood(this,'🤩')">🤩</button>
+        </div>
       </div>
     </div>
 
     <!-- Gratitudes -->
-    <div class="slbl">🌸 3 gratitudes</div>
-    <div class="card">
-      <div class="grat-grid">
-        <div class="gcard empty" id="gc0" onclick="editGrat(0)">+ Ajouter</div>
-        <div class="gcard empty" id="gc1" onclick="editGrat(1)">+ Ajouter</div>
-        <div class="gcard empty" id="gc2" onclick="editGrat(2)">+ Ajouter</div>
+    <div class="card" id="grat-card" style="margin-bottom:14px">
+      <div id="grat-collapsed" style="display:none;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="toggleCard('grat')">
+        <span style="font-size:16px">🌸</span>
+        <span style="font-size:13px;color:#993556;font-weight:600">3 gratitudes ✅</span>
+        <span style="margin-left:auto;font-size:12px;color:#aaa">✏️</span>
+      </div>
+      <div id="grat-expanded">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#D4537E;padding:12px 14px 8px">🌸 3 gratitudes</div>
+        <div class="grat-grid">
+          <div class="gcard empty" id="gc0" onclick="editGrat(0)">+ Ajouter</div>
+          <div class="gcard empty" id="gc1" onclick="editGrat(1)">+ Ajouter</div>
+          <div class="gcard empty" id="gc2" onclick="editGrat(2)">+ Ajouter</div>
+        </div>
       </div>
     </div>
 
     <!-- Intention -->
-    <div class="slbl">🎯 Intention du jour</div>
-    <div class="int-card">
-      <input type="text" id="int-inp" placeholder="Aujourd'hui je veux..." oninput="DB.intention=this.value;sv()"/>
+    <div class="card" id="int-card" style="margin-bottom:14px">
+      <div id="int-collapsed" style="display:none;padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="toggleCard('int')">
+        <span style="font-size:16px">🎯</span>
+        <span style="font-size:13px;color:#993556;font-weight:600;flex:1" id="int-collapsed-text">Intention du jour</span>
+        <span style="font-size:12px;color:#085041;font-weight:700">✅</span>
+        <span style="font-size:12px;color:#aaa;margin-left:4px">✏️</span>
+      </div>
+      <div id="int-expanded">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#D4537E;padding:12px 14px 8px">🎯 Intention du jour</div>
+        <div style="padding:0 14px 14px">
+          <input type="text" id="int-inp" placeholder="Aujourd'hui je veux..." oninput="DB.intention=this.value;sv();checkIntCollapse()"/>
+        </div>
+      </div>
     </div>
 
     <!-- Planning visuel -->
@@ -2074,6 +2098,50 @@ function faireMaintenent(){
   sv();closeReportModal();renderPlanning();
   toast('▶️ À faire maintenant — '+heureNow+' !');
 }
+
+// ═══════════════════════════════════════
+// COLLAPSE CARDS MATIN
+// ═══════════════════════════════════════
+function toggleCard(type){
+  const expanded=document.getElementById(type+'-expanded');
+  const collapsed=document.getElementById(type+'-collapsed');
+  if(!expanded||!collapsed) return;
+  const isExpanded=expanded.style.display!=='none';
+  expanded.style.display=isExpanded?'none':'block';
+  collapsed.style.display=isExpanded?'flex':'none';
+}
+
+function checkMoodCollapse(){
+  if(!DB.mood) return;
+  const expanded=document.getElementById('mood-expanded');
+  const collapsed=document.getElementById('mood-collapsed');
+  const emojiDisplay=document.getElementById('mood-emoji-display');
+  if(!expanded||!collapsed) return;
+  expanded.style.display='none';
+  collapsed.style.display='flex';
+  if(emojiDisplay) emojiDisplay.textContent=DB.mood;
+}
+
+function checkGratCollapse(){
+  if(!DB.grat||!DB.grat.filter(g=>g).length) return;
+  if(DB.grat.filter(g=>g).length<3) return; // Attendre les 3
+  const expanded=document.getElementById('grat-expanded');
+  const collapsed=document.getElementById('grat-collapsed');
+  if(!expanded||!collapsed) return;
+  expanded.style.display='none';
+  collapsed.style.display='flex';
+}
+
+function checkIntCollapse(){
+  if(!DB.intention||DB.intention.length<3) return;
+  const expanded=document.getElementById('int-expanded');
+  const collapsed=document.getElementById('int-collapsed');
+  const text=document.getElementById('int-collapsed-text');
+  if(!expanded||!collapsed) return;
+  expanded.style.display='none';
+  collapsed.style.display='flex';
+  if(text) text.textContent=DB.intention;
+}  
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -3006,6 +3074,11 @@ function renderAll(){
   if(HOUR>=18){
     document.getElementById('soir-section').classList.add('visible');
   }
+
+  // Collapse si déjà rempli
+  if(DB.mood) checkMoodCollapse();
+  if(DB.grat&&DB.grat.filter(g=>g).length>=3) checkGratCollapse();
+  if(DB.intention&&DB.intention.length>=3) checkIntCollapse();
 }
 
 function renderMood(){
@@ -3037,6 +3110,7 @@ function setMood(btn,m){
   document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   DB.mood=m;sv();
+  setTimeout(()=>checkMoodCollapse(),300);
 }
 
 let gIdx=-1;
@@ -3056,6 +3130,7 @@ function saveGrat(){
   DB.grat[gIdx]=v;
   sv();renderGrat();
   closeModal('grat-modal');
+  checkGratCollapse();
 }
 
 document.getElementById('g-inp').addEventListener('keydown',e=>{
