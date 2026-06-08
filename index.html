@@ -1915,6 +1915,30 @@ function decalerTout(minutes){
     }
   });
 
+  // Recalculer les heures de début des blocs en cascade
+  let heureFinPrecedent=null;
+  DB.planning.blocs.forEach(bloc=>{
+    if(heureFinPrecedent&&bloc.id!=='bloc-repas'&&bloc.id!=='bloc-soir'){
+      // Le bloc commence 5 min après la fin du précédent si chevauchement
+      const[bh,bm]=bloc.tasks[0]?.heureDebut?.split(':').map(Number)||[0,0];
+      const[ph,pm]=heureFinPrecedent.split(':').map(Number);
+      if(bh*60+bm < ph*60+pm){
+        // Décaler toutes les tâches de ce bloc
+        const decalage=(ph*60+pm+5)-(bh*60+bm);
+        bloc.tasks.forEach(t=>{
+          if(t.heureDebut) t.heureDebut=addMinutes(t.heureDebut,decalage);
+        });
+      }
+    }
+    if(bloc.tasks.length){
+      const last=bloc.tasks[bloc.tasks.length-1];
+      if(last.heureDebut){
+        bloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
+        heureFinPrecedent=bloc.heureFin;
+      }
+    }
+  });
+
   if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();closeResume();renderPlanning();
   toast(`⏰ Tâches en retard décalées de ${minutes===60?'1h':'2h'} !`);
@@ -2290,14 +2314,13 @@ function getDuree(taskId){
 
 function addMinutes(heureStr, minutes){
   if(!heureStr||typeof heureStr!=='string'||!heureStr.includes(':')) heureStr='07:00';
-  const [h,m]=heureStr.split(':').map(Number);
+  const[h,m]=heureStr.split(':').map(Number);
   const total=h*60+m+minutes;
-  // Limiter à 23:59 max
   if(total>=24*60) return '23:59';
   if(total<0) return '00:00';
   const nh=Math.floor(total/60);
   const nm=total%60;
-  return `${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
+  return`${String(nh).padStart(2,'0')}:${String(nm).padStart(2,'0')}`;
 }
 
 function getHeureFinBloc(tasks, heureDebut){
