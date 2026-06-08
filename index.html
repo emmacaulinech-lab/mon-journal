@@ -1732,6 +1732,10 @@ async function initNotifications(){
 }
 
 function scheduleNotifications(){
+  // Annuler l'ancien interval si existe
+  if(window._notifInterval) clearInterval(window._notifInterval);
+  
+  window._notifInterval=setInterval(()=>{
   if(!DB.notifs) DB.notifs={active:true};
   sv();
 
@@ -1766,7 +1770,7 @@ function scheduleNotifications(){
         requireInteraction:false
       });
     }
-  }, 15*60*1000); // toutes les 15 min
+  }, 15*60*1000);
 }
 
 function buildResume(notifTime){
@@ -2946,6 +2950,13 @@ async function init(){
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='block';
   if(Notification.permission==='granted') scheduleNotifications();
+  
+  // Relancer les notifications quand tu reviens sur l'app
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&Notification.permission==='granted'){
+      scheduleNotifications();
+    }
+  });
 }
 </script>
 </body>
