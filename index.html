@@ -1758,12 +1758,6 @@ function scheduleNotifications(){
 
     // Notifier si +3 tâches en retard
     if(enRetard>=3){
-      // Éviter de notifier trop souvent — max 1 fois par heure
-      const lastNotif=localStorage.getItem('lastNotifTime');
-      const now2=Date.now();
-      if(lastNotif&&now2-parseInt(lastNotif)<3600000) return;
-
-      localStorage.setItem('lastNotifTime',now2);
       localStorage.setItem('openResume','true');
       const resume=buildResume(now);
       new Notification('🌸 On en est où Emma ?',{
