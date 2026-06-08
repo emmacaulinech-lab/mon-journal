@@ -527,8 +527,8 @@ function renderWeek(){
       }
 
       if(data.vs){
-        const done=Object.values(data.vs).filter(Boolean).length;
-        const total=Object.keys(data.vs).length;
+        const done=Object.values(data.vs).filter(v=>v===true).length;
+        const total=Object.values(data.vs).length;
         if(total>0){
           const pct=Math.round(done/total*100);
           // % texte
@@ -2156,8 +2156,8 @@ function renderWeekGraph(){
     const isT=ds===TSTR;
     const h=isT?{mood:DB.mood,vs:DB.planning?.vs||{}}:DB.hist&&DB.hist[ds];
     if(!h) return{ds,pct:null,mood:null};
-    const done=h.vs?Object.values(h.vs).filter(Boolean).length:0;
-    const total=h.vs?Object.keys(h.vs).length:0;
+    const done=h.vs?Object.values(h.vs).filter(v=>v===true).length:0;
+    const total=h.vs?Object.values(h.vs).length:0;
     return{
       ds,
       pct:total?Math.round(done/total*100):null,
