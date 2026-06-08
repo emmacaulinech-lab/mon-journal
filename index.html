@@ -282,9 +282,18 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <div class="card" id="gainage-card">
       <div class="card-header">
         <span class="card-title">💪 Gainage</span>
-        <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="nextGainage()">Autre séance</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="nextGainage()">Autre</button>
+          <button class="btn btn-light" style="padding:5px 10px;font-size:11px" onclick="validerGainage()">✅ Fait !</button>
+        </div>
       </div>
       <div id="gainage-content" style="padding:14px"></div>
+    </div>
+
+    <!-- HISTORIQUE GAINAGE -->
+    <div class="slbl">📊 Historique gainage</div>
+    <div class="card">
+      <div id="gainage-historique" style="padding:14px"></div>
     </div>
 
     <!-- RECETTES -->
@@ -2218,6 +2227,106 @@ function renderWeekGraph(){
 
   el.innerHTML=html;
 }  
+
+// ═══════════════════════════════════════
+// HISTORIQUE GAINAGE
+// ═══════════════════════════════════════
+function validerGainage(){
+  if(!DB.gainageHist) DB.gainageHist=[];
+  const seance=SEANCES_GAINAGE[getGainageIdx()];
+  
+  // Éviter les doublons du même jour
+  if(DB.gainageHist.find(g=>g.date===TSTR)){
+    toast('Séance déjà enregistrée aujourd\'hui !');
+    return;
+  }
+
+  DB.gainageHist.push({
+    date:TSTR,
+    niveau:seance.niveau,
+    duree:seance.duree,
+    exercices:seance.exercices.length
+  });
+
+  sv();
+  renderGainageHist();
+  toast('💪 Séance enregistrée !');
+}
+
+function renderGainageHist(){
+  const el=document.getElementById('gainage-historique');
+  if(!el) return;
+
+  const hist=(DB.gainageHist||[]).sort((a,b)=>b.date.localeCompare(a.date));
+
+  if(!hist.length){
+    el.innerHTML=`<div style="text-align:center;padding:16px;color:#aaa;font-size:12px">
+      Aucune séance enregistrée<br>Appuie sur ✅ Fait ! après ta séance
+    </div>`;
+    return;
+  }
+
+  // Stats globales
+  const total=hist.length;
+  const ce_mois=hist.filter(g=>g.date.startsWith(TSTR.slice(0,7))).length;
+  const serie=calculerSerie(hist);
+
+  let html=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div style="text-align:center;background:#FBEAF0;border-radius:12px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:#993556">${total}</div>
+        <div style="font-size:10px;color:#D4537E">Total</div>
+      </div>
+      <div style="text-align:center;background:#FBEAF0;border-radius:12px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:#993556">${ce_mois}</div>
+        <div style="font-size:10px;color:#D4537E">Ce mois</div>
+      </div>
+      <div style="text-align:center;background:#FBEAF0;border-radius:12px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:#993556">${serie}🔥</div>
+        <div style="font-size:10px;color:#D4537E">Série</div>
+      </div>
+    </div>`;
+
+  // Liste des séances
+  html+=`<div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:8px">Dernières séances</div>`;
+  hist.slice(0,10).forEach(g=>{
+    const date=new Date(g.date+'T12:00:00');
+    const niv={
+      'Débutant':'background:#E1F5EE;color:#085041',
+      'Intermédiaire':'background:#DBEAFE;color:#1E40AF',
+      'Avancé':'background:#FEE2E2;color:#991B1B',
+      'Express 10 min':'background:#FEF3CD;color:#856404',
+      'Doux':'background:#F3E8FF;color:#6B21A8',
+    }[g.niveau]||'background:#F3F4F6;color:#374151';
+
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fdf6f9">
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${date.getDate()} ${MOIS[date.getMonth()]}</div>
+        <div style="font-size:10px;color:#aaa">${g.exercices} exercices · ${g.duree}</div>
+      </div>
+      <span style="font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;${niv}">${g.niveau}</span>
+    </div>`;
+  });
+
+  el.innerHTML=html;
+}
+
+function calculerSerie(hist){
+  if(!hist.length) return 0;
+  const sorted=hist.map(g=>g.date).sort().reverse();
+  let serie=0;
+  let current=new Date(TSTR+'T12:00:00');
+  
+  for(const date of sorted){
+    const d=new Date(date+'T12:00:00');
+    const diff=Math.round((current-d)/86400000);
+    if(diff<=2){ // Tolérance 2 jours
+      serie++;
+      current=d;
+    } else break;
+  }
+  return serie;
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -3141,6 +3250,7 @@ function renderAll(){
   loadFrigo();
   renderLivre();
   renderLivreCours();
+  renderGainageHist();
   if(DB.intention) document.getElementById('int-inp').value=DB.intention;
   if(DB.q1) document.getElementById('q1').value=DB.q1;
   if(DB.q2) document.getElementById('q2').value=DB.q2;
