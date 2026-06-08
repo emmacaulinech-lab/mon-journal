@@ -1598,6 +1598,23 @@ function saveHeureModal(){
   }
   bloc.heureFin=h;
   console.log('première tâche après modif:',bloc.tasks[0].heureDebut);
+  
+  // Recalculer les blocs suivants en cascade
+  let propagate=false;
+  planning.blocs.forEach(b=>{
+    if(b.id===heureModalData.blocId){propagate=true;return;}
+    if(!propagate||b.fixed) return;
+    // Le bloc suivant commence à la fin du bloc précédent
+    const prevBloc=planning.blocs[planning.blocs.indexOf(b)-1];
+    if(prevBloc&&prevBloc.heureFin){
+      const diff=addMinutes(prevBloc.heureFin,5); // 5 min entre blocs
+      b.heureDebut=diff;
+      let bh=diff;
+      b.tasks.forEach(t=>{t.heureDebut=bh;bh=addMinutes(bh,getDuree(t.id));});
+      b.heureFin=bh;
+    }
+  });
+
   DB.planning=planning;
   if(DB.plannings) DB.plannings[TSTR]=planning;
   sv();closeHeureModal();renderPlanning();
