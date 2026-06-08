@@ -1644,6 +1644,8 @@ function saveHeureModal(){
 
   DB.planning=planning;
   if(DB.plannings) DB.plannings[TSTR]=planning;
+  // Trier les tâches du bloc par heure
+  bloc.tasks.sort((a,b)=>a.heureDebut.localeCompare(b.heureDebut));
   sv();closeHeureModal();renderPlanning();
   toast('✓ Heure mise à jour !');
 }
@@ -2693,12 +2695,6 @@ function renderPlanning(){
       if(total===0){
         content.innerHTML=`<div style="padding:12px 14px;font-size:12px;color:#aaa;font-style:italic">Aucune tâche prévue 🎉</div>`;
       } else {
-        // Trier les tâches par heure
-      bloc.tasks.sort((a,b)=>{
-        if(!a.heureDebut) return 1;
-        if(!b.heureDebut) return -1;
-        return a.heureDebut.localeCompare(b.heureDebut);
-      });
         bloc.tasks.forEach((t,taskIdx)=>{
           const isDone=DB.planning.vs&&DB.planning.vs[t.id];
           const zone=t.zone?ZCOL[t.zone]||ZCOL.Perso:null;
@@ -2773,10 +2769,14 @@ function onDropTask(targetBlocId,targetIdx){
   if(dragBlocId!==targetBlocId||dragSrc===null||dragSrc===targetIdx) return;
   const bloc=DB.planning.blocs.find(b=>b.id===dragBlocId);
   if(!bloc) return;
-  const [moved]=bloc.tasks.splice(dragSrc,1);
+  const[moved]=bloc.tasks.splice(dragSrc,1);
   bloc.tasks.splice(targetIdx,0,moved);
   dragSrc=null;dragBlocId=null;
-  calcHeures(DB.planning.blocs);
+  // Recalculer les heures après le drop
+  let h=bloc.tasks[0]?.heureDebut||bloc.heureDebut||'07:00';
+  bloc.tasks.forEach(t=>{t.heureDebut=h;h=addMinutes(h,getDuree(t.id));});
+  bloc.heureFin=h;
+  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();renderPlanning();
 }
 
