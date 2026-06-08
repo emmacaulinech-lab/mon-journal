@@ -374,12 +374,14 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     <div class="report-title" id="report-task-name">Tâche</div>
     <div class="report-opts">
       <button class="report-opt" onclick="validerTask()">✅ Valider — c'est fait !</button>
+      <button class="report-opt" onclick="showDeplacerBloc()">📦 Déplacer vers un autre bloc</button>
       <button class="report-opt" onclick="reporterTask(1)">➡️ Demain</button>
       <button class="report-opt" onclick="reporterTask(2)">📅 Dans 2 jours</button>
       <button class="report-opt" onclick="reporterTask(3)">📅 Dans 3 jours</button>
       <button class="report-opt" onclick="reporterTask(7)">📅 La semaine prochaine</button>
       <button class="report-opt" style="color:#aaa" onclick="closeReportModal()">Annuler</button>
     </div>
+    <div id="deplacer-blocs" style="display:none;margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
   </div>
 </div>
 
@@ -1936,6 +1938,61 @@ function decalerTout(minutes){
   if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();closeResume();renderPlanning();
   toast(`⏰ Tâches en retard décalées de ${minutes===60?'1h':'2h'} !`);
+}
+
+function showDeplacerBloc(){
+  if(!currentTaskAction) return;
+  const el=document.getElementById('deplacer-blocs');
+  if(!el) return;
+
+  // Afficher les blocs disponibles sauf le bloc actuel
+  const autresBlocs=DB.planning.blocs.filter(b=>
+    b.id!==currentTaskAction.blocId&&
+    b.id!=='bloc-travail'
+  );
+
+  el.style.display='flex';
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:4px">Choisir le bloc :</div>`+
+    autresBlocs.map(b=>`
+      <button onclick="deplacerVersBloc('${b.id}')" 
+        style="padding:10px 14px;border-radius:12px;border:1.5px solid ${b.bordure};background:${b.couleur};color:${b.textCol};font-size:13px;cursor:pointer;text-align:left;font-family:inherit;font-weight:600">
+        ${b.emoji} ${b.label}
+      </button>`).join('');
+}
+
+function deplacerVersBloc(targetBlocId){
+  if(!currentTaskAction) return;
+  const sourceBlocId=currentTaskAction.blocId;
+  const taskId=currentTaskAction.taskId;
+
+  const sourceBloc=DB.planning.blocs.find(b=>b.id===sourceBlocId);
+  const targetBloc=DB.planning.blocs.find(b=>b.id===targetBlocId);
+  if(!sourceBloc||!targetBloc) return;
+
+  // Trouver et déplacer la tâche
+  const taskIdx=sourceBloc.tasks.findIndex(t=>t.id===taskId);
+  if(taskIdx===-1) return;
+  const[task]=sourceBloc.tasks.splice(taskIdx,1);
+
+  // Recalculer l'heure selon la fin du bloc cible
+  const lastTask=targetBloc.tasks[targetBloc.tasks.length-1];
+  task.heureDebut=lastTask?addMinutes(lastTask.heureDebut,getDuree(lastTask.id)):targetBloc.heureDebut;
+
+  targetBloc.tasks.push(task);
+
+  // Recalculer les heureFin des deux blocs
+  if(sourceBloc.tasks.length){
+    const last=sourceBloc.tasks[sourceBloc.tasks.length-1];
+    sourceBloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
+  }
+  if(targetBloc.tasks.length){
+    const last=targetBloc.tasks[targetBloc.tasks.length-1];
+    targetBloc.heureFin=addMinutes(last.heureDebut,getDuree(last.id));
+  }
+
+  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
+  sv();closeReportModal();renderPlanning();
+  toast(`✅ Tâche déplacée vers ${targetBloc.label} !`);
 }
   
 function showLogin(){
