@@ -777,13 +777,27 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     });
   }
 
+  // Tâches fixes fin de journée
+  const tachesFixesSoir=[
+    {id:'soir-gamelles',n:'🐶 Gamelles d\'eau chiens',zone:'Chiens'},
+    {id:'soir-changer',n:'👗 Se changer / ranger tenues',zone:'Chambre'},
+    {id:'soir-ranger',n:'🏠 Ranger objets/affaires',zone:'Maison'},
+  ];
+
+  // Gainage seulement si jour de travail (pas fait le matin)
+  if(isWork){
+    tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être'});
+  }
+
+  // Tâches ménagères selon temps libre
   const maxSoir=isWork?tempsLibre:2;
   const tachesSoir=getTasksFuture(maxSoir);
+
   blocs.push({
     id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
     heureDebut:isWork?addMinutes(travail.fin,20):'17:00',
     couleur:'#F0FDF4',bordure:'#9FE1CB',textCol:'#166534',
-    tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))
+    tasks:[...tachesFixesSoir,...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))]
   });
 
   blocs.push({
@@ -2153,12 +2167,6 @@ const ROUTINE_MATIN_WORK=[
 
 // Routine du soir
 const ROUTINE_SOIR=[
-  {id:'s1',n:'🐶 Gamelles d\'eau chiens',z:'Chiens'},
-  {id:'s2',n:'👗 Se changer / ranger tenues',z:'Chambre'},
-  {id:'s3',n:'🏠 Ranger objets/affaires',z:'Maison'},
-  {id:'s4',n:'💪 Gainage 10 min',z:'Bien-être'},
-  {id:'s5',n:'🍽️ Préparer dîner',z:'Cuisine'},
-  {id:'s6',n:'🍽️ Débarrasser + vaisselle',z:'Cuisine'},
   {id:'s7',n:'🌿 Skincare soir',z:'Bien-être'},
   {id:'s8',n:'🦷 Brosser les dents soir',z:'Perso'},
   {id:'s9',n:'💧 Hydratation',z:'Bien-être'},
@@ -2516,17 +2524,17 @@ function buildBlocs(){
 
   // FIN DE JOURNÉE
   const heureFinJournee=IS_WORK?addMinutes(travail.fin,20):'17:00';
+  const tachesFixesSoir=[
+    {id:'soir-gamelles',n:'🐶 Gamelles d\'eau chiens',zone:'Chiens',done:false},
+    {id:'soir-changer',n:'👗 Se changer / ranger tenues',zone:'Chambre',done:false},
+    {id:'soir-ranger',n:'🏠 Ranger objets/affaires',zone:'Maison',done:false},
+  ];
+  if(IS_WORK){
+    tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être',done:false});
+  }
   const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees);
   blocs.push({
     id:'bloc-fin',
-    emoji:'🏠',
-    label:'Fin de journée',
-    heureDebut:heureFinJournee,
-    couleur:'#F0FDF4',
-    bordure:'#9FE1CB',
-    textCol:'#166534',
-    tasks:tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
-  });
 
   // REPAS
   const heureRepas=IS_WORK?'20:30':(DOW===6?'18:30':'19:00');
