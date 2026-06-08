@@ -2071,44 +2071,34 @@ function validerMaintenant(){
   if(!currentTaskAction) return;
   const now=new Date();
   const heureNow=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
+  
   // Marquer comme validée
   if(!DB.planning.vs) DB.planning.vs={};
   DB.planning.vs[currentTaskAction.taskId]=true;
-
+  
   // Mettre à jour l'heure de fin = maintenant
   const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
   if(bloc){
     const task=bloc.tasks.find(t=>t.id===currentTaskAction.taskId);
     if(task) task.heureFin=heureNow;
-  }
-
-  // Sauvegarder dans l'historique
-  const realId=currentTaskAction.taskId.replace(/^[mjs]/,'');
-  if(!DB.hist) DB.hist={};
-  if(!DB.hist[TSTR]) DB.hist[TSTR]={vs:{}};
-  if(!DB.hist[TSTR].vs) DB.hist[TSTR].vs={};
-  DB.hist[TSTR].vs['j'+realId]=true;
-
-  if(DB.plannings) DB.plannings[TSTR]=DB.planning;
-  sv();closeReportModal();renderPlanning();
-  toast('✅ Validée à '+heureNow+' !');
-}
-
+    // Retrier le bloc par heure
+    bloc.tasks.sort((a,b)=>{
+      if(!a.heureDebut) return 1;
+      if(!b.heureDebut)
+        
 function faireMaintenent(){
   if(!currentTaskAction) return;
   const now=new Date();
   const heureNow=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-
+  
   const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
   if(!bloc) return;
-
   const taskIdx=bloc.tasks.findIndex(t=>t.id===currentTaskAction.taskId);
   if(taskIdx===-1) return;
-
+  
   // Mettre l'heure de début à maintenant
   bloc.tasks[taskIdx].heureDebut=heureNow;
-
+  
   // Recalculer les heures des tâches suivantes
   let h=heureNow;
   for(let i=taskIdx;i<bloc.tasks.length;i++){
@@ -2119,7 +2109,14 @@ function faireMaintenent(){
     }
   }
   bloc.heureFin=h;
-
+  
+  // Retrier le bloc par heure
+  bloc.tasks.sort((a,b)=>{
+    if(!a.heureDebut) return 1;
+    if(!b.heureDebut) return -1;
+    return a.heureDebut.localeCompare(b.heureDebut);
+  });
+  
   if(DB.plannings) DB.plannings[TSTR]=DB.planning;
   sv();closeReportModal();renderPlanning();
   toast('▶️ À faire maintenant — '+heureNow+' !');
@@ -3222,6 +3219,13 @@ function validerTask(){
   if(!DB.hist[TSTR]) DB.hist[TSTR]={vs:{}};
   if(!DB.hist[TSTR].vs) DB.hist[TSTR].vs={};
   DB.hist[TSTR].vs['j'+realId]=true;
+  // Retrier le bloc par heure
+  const bloc=DB.planning.blocs.find(b=>b.id===currentTaskAction.blocId);
+  if(bloc) bloc.tasks.sort((a,b)=>{
+    if(!a.heureDebut) return 1;
+    if(!b.heureDebut) return -1;
+    return a.heureDebut.localeCompare(b.heureDebut);
+  });
   sv();renderPlanning();closeReportModal();
   toast('✅ Validée !');
 }
