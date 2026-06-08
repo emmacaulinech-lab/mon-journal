@@ -1732,37 +1732,47 @@ async function initNotifications(){
 }
 
 function scheduleNotifications(){
-  if(!DB.notifs) DB.notifs={
-    matin:{active:true,heure:'07:00'},
-    midi:{active:true,heure:'10:00'},
-    aprem:{active:true,heure:'14:00'},
-    soir:{active:true,heure:'21:30'},
-  };
+  if(!DB.notifs) DB.notifs={active:true};
   sv();
 
-  const now=new Date();
+  // Vérifier toutes les 15 minutes
+  setInterval(()=>{
+    if(Notification.permission!=='granted') return;
+    if(!DB.planning||!DB.planning.blocs) return;
 
-  Object.entries(DB.notifs).forEach(([type,notif])=>{
-    if(!notif.active) return;
-    const[h,m]=notif.heure.split(':').map(Number);
-    const notifTime=new Date();
-    notifTime.setHours(h,m,0,0);
-    if(notifTime<=now) return;
+    const now=new Date();
+    const nowMinutes=now.getHours()*60+now.getMinutes();
 
-    const delay=notifTime-now;
-    setTimeout(()=>{
-      if(Notification.permission!=='granted') return;
-      // Construire le résumé
-      const resume=buildResume(notifTime);
+    // Compter les tâches en retard
+    let enRetard=0;
+    DB.planning.blocs.forEach(bloc=>{
+      bloc.tasks.forEach(t=>{
+        if(!t.heureDebut) return;
+        const isDone=DB.planning.vs&&DB.planning.vs[t.id];
+        if(isDone) return;
+        const[th,tm]=t.heureDebut.split(':').map(Number);
+        const taskMinutes=th*60+tm;
+        if(taskMinutes<nowMinutes-15) enRetard++;
+      });
+    });
+
+    // Notifier si +3 tâches en retard
+    if(enRetard>=3){
+      // Éviter de notifier trop souvent — max 1 fois par heure
+      const lastNotif=localStorage.getItem('lastNotifTime');
+      const now2=Date.now();
+      if(lastNotif&&now2-parseInt(lastNotif)<3600000) return;
+
+      localStorage.setItem('lastNotifTime',now2);
       localStorage.setItem('openResume','true');
+      const resume=buildResume(now);
       new Notification('🌸 On en est où Emma ?',{
-        body:resume,
-        icon:'/mon-journal/icon.png',
-        tag:'journal-'+type,
+        body:`${enRetard} tâches en retard !\n${resume}`,
+        tag:'journal-retard',
         requireInteraction:false
       });
-    },delay);
-  });
+    }
+  }, 15*60*1000); // toutes les 15 min
 }
 
 function buildResume(notifTime){
