@@ -2163,22 +2163,24 @@ function getTasksBloc(max=3, exclude=new Set()){
 }
 
 function buildPlanning(){
-  // Forcer la reconstruction si les blocs n'ont pas d'emoji
-  if(DB.planning&&DB.planning.date===TSTR){
-    const hasEmoji=DB.planning&&DB.planning.blocs&&DB.planning.blocs[0]&&DB.planning.blocs[0].emoji;
-  const hasDoublons=DB.planning&&DB.planning.blocs&&(()=>{
-    const ids=DB.planning.blocs.flatMap(b=>b.tasks.map(t=>t.id));
-    return ids.length!==new Set(ids).size;
-  })();
-  if(hasEmoji&&!hasDoublons) return;
+  // Utiliser DB.plannings pour aujourd'hui aussi
+  if(!DB.plannings) DB.plannings={};
+  
+  if(DB.plannings[TSTR]){
+    const hasEmoji=DB.plannings[TSTR].blocs&&DB.plannings[TSTR].blocs[0]&&DB.plannings[TSTR].blocs[0].emoji;
+    const hasDoublons=(()=>{
+      const ids=DB.plannings[TSTR].blocs.flatMap(b=>b.tasks.map(t=>t.id));
+      return ids.length!==new Set(ids).size;
+    })();
+    if(hasEmoji&&!hasDoublons){
+      DB.planning=DB.plannings[TSTR];
+      return;
+    }
   }
-  const blocs=buildBlocs();
-  DB.planning={
-    date:TSTR,
-    blocs,
-    vs:{},
-    heureTravail:getHeureTravail()
-  };
+
+  // Générer avec le même système que les jours futurs
+  DB.plannings[TSTR]=generatePlanningForDay(TSTR,DOW,IS_WORK,IS_LIGHT);
+  DB.planning=DB.plannings[TSTR];
   sv();
 }
 
