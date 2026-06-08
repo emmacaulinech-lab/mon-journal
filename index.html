@@ -2386,20 +2386,22 @@ function onTouchEnd(e,blocId){
 
 // MODIFIER HEURE D'UNE TÂCHE
 function editHeureTache(blocId,taskIdx){
-  const bloc=DB.planning.blocs.find(b=>b.id===blocId);
+  const planning=DB.plannings&&DB.plannings[TSTR]?DB.plannings[TSTR]:DB.planning;
+  const bloc=planning.blocs.find(b=>b.id===blocId);
   if(!bloc) return;
   const task=bloc.tasks[taskIdx];
   const nouvelleHeure=prompt(`Heure pour "${task.n}" :`,task.heureDebut);
   if(!nouvelleHeure) return;
   if(!/^\d{2}:\d{2}$/.test(nouvelleHeure)){toast('Format HH:MM requis');return;}
-  // Recalculer les heures à partir de cette tâche
-  task.heureDebut=nouvelleHeure;
   let h=nouvelleHeure;
   for(let i=taskIdx;i<bloc.tasks.length;i++){
     bloc.tasks[i].heureDebut=h;
     h=addMinutes(h,getDuree(bloc.tasks[i].id));
   }
   bloc.heureFin=h;
+  // Sync les deux références
+  DB.planning=planning;
+  if(DB.plannings) DB.plannings[TSTR]=planning;
   sv();renderPlanning();
 }
 
