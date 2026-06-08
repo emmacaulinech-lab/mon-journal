@@ -723,7 +723,11 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
   const blocs=[];
 
   // MATIN
-  const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z}));
+  // Routine matin sans gainage si jour de travail
+  const routineMatinFiltree=isWork
+    ?ROUTINE_MATIN.filter(t=>ROUTINE_MATIN_WORK.includes(t.id))
+    :ROUTINE_MATIN;
+  const routineMatin=routineMatinFiltree.map(t=>({id:'m'+t.id,n:t.n,zone:t.z}));
   const tachesMatin=getTasksFuture(isWork?2:3);
   blocs.push({
     id:'bloc-matin',emoji:'🌅',label:'Matin',heureDebut:'07:00',
