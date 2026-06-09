@@ -2388,29 +2388,68 @@ function renderBilanHierBandeau(){
 function ouvrirBilanHier(hierStr){
   const hier=new Date(hierStr+'T12:00:00');
   const planning=DB.plannings[hierStr];
-  const total=planning?.blocs?.flatMap(b=>b.tasks).length||0;
-  const faites=Object.values(planning?.vs||{}).filter(v=>v===true).length;
+  const allTasks=planning?.blocs?.flatMap(b=>b.tasks)||[];
+  const total=allTasks.length;
+  const vs=planning?.vs||{};
+  const faites=Object.values(vs).filter(v=>v===true).length;
   const pct=total?Math.round(faites/total*100):0;
 
   document.getElementById('bilan-date').textContent=
     `${JOURS[hier.getDay()]} ${hier.getDate()} ${MOIS[hier.getMonth()]}`;
 
-  let html=`<div style="background:#FBEAF0;border-radius:14px;padding:14px;margin-bottom:10px;text-align:center">
-    <div style="font-size:32px;font-weight:700;color:#993556">${pct}%</div>
-    <div style="font-size:12px;color:#D4537E;margin-bottom:8px">${faites} tâches accomplies sur ${total}</div>
-    <div style="height:8px;background:#F4C0D1;border-radius:99px;overflow:hidden">
-      <div style="height:100%;background:linear-gradient(90deg,#993556,#D4537E);border-radius:99px;width:${pct}%"></div>
+  let html=`<div style="background:#FBEAF0;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#993556" id="hier-pct-display">${pct}%</div>
+    <div style="font-size:12px;color:#D4537E;margin-bottom:8px" id="hier-nb-display">${faites} tâches sur ${total}</div>
+    <div style="height:6px;background:#F4C0D1;border-radius:99px;overflow:hidden">
+      <div id="hier-bar" style="height:100%;background:linear-gradient(90deg,#993556,#D4537E);border-radius:99px;width:${pct}%;transition:width .3s"></div>
     </div>
   </div>
-  <div style="font-size:13px;color:#993556;font-style:italic;text-align:center;padding:8px">
-    ${pct>=80?'Belle journée hier 💪':pct>=50?'Pas mal hier 🌸':'Chaque jour compte 🌟'}
-  </div>`;
+  <div style="font-size:11px;font-weight:700;color:#D4537E;margin-bottom:8px">Coche les tâches faites hier :</div>
+  <div style="max-height:300px;overflow-y:auto">`;
 
+  planning.blocs.forEach(bloc=>{
+    const nonFaites=bloc.tasks.filter(t=>!vs[t.id]);
+    if(!nonFaites.length) return;
+    html+=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:${bloc.textCol};background:${bloc.couleur};padding:5px 10px;border-radius:8px;margin-bottom:4px;margin-top:8px">${bloc.emoji} ${bloc.label}</div>`;
+    nonFaites.forEach(t=>{
+      html+=`<div onclick="toggleHierTask('${hierStr}','${t.id}')" id="hier-task-${t.id.replace(/[^a-zA-Z0-9]/g,'_')}" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid #F4C0D1;border-radius:10px;margin-bottom:5px;cursor:pointer;background:white">
+        <div id="hier-chk-${t.id.replace(/[^a-zA-Z0-9]/g,'_')}" style="width:20px;height:20px;border-radius:50%;border:2px solid #F4C0D1;background:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0"></div>
+        <span style="font-size:13px">${t.n}</span>
+      </div>`;
+    });
+  });
+
+  html+=`</div>`;
   document.getElementById('bilan-content').innerHTML=html;
-
-  // Modifier le bouton confirmer pour hier
   document.querySelector('#bilan-modal .btn-rose').onclick=()=>confirmerFinJourneeHier(hierStr);
   document.getElementById('bilan-modal').classList.add('open');
+}
+
+function toggleHierTask(hierStr, taskId){
+  const planning=DB.plannings[hierStr];
+  if(!planning.vs) planning.vs={};
+  planning.vs[taskId]=!planning.vs[taskId];
+  sv();
+
+  // Update UI
+  const safeId=taskId.replace(/[^a-zA-Z0-9]/g,'_');
+  const chk=document.getElementById('hier-chk-'+safeId);
+  const row=document.getElementById('hier-task-'+safeId);
+  const isDone=planning.vs[taskId];
+  if(chk){chk.style.background=isDone?'#9FE1CB':'white';chk.style.borderColor=isDone?'#085041':'#F4C0D1';chk.textContent=isDone?'✓':'';}
+  if(row) row.style.background=isDone?'#f9fef9':'white';
+
+  // Update stats
+  const allTasks=planning.blocs.flatMap(b=>b.tasks);
+  const total=allTasks.length;
+  const faites=Object.values(planning.vs).filter(v=>v===true).length;
+  const pct=total?Math.round(faites/total*100):0;
+  const pctEl=document.getElementById('hier-pct-display');
+  const nbEl=document.getElementById('hier-nb-display');
+  const barEl=document.getElementById('hier-bar');
+  if(pctEl) pctEl.textContent=pct+'%';
+  if(nbEl) nbEl.textContent=faites+' tâches sur '+total;
+  if(barEl) barEl.style.width=pct+'%';
 }
 
 async function confirmerFinJourneeHier(hierStr){
