@@ -2499,6 +2499,9 @@ const ALL_TASKS=[
   {id:'sdb11',n:'💇 Nettoyer brosse à cheveux',z:'SDB',f:14},
   {id:'sdb12',n:'🚿 Vider filtre douche',z:'SDB',f:14},
   {id:'sdb13',n:'🧼 Nettoyer joints douche',z:'SDB',f:30},
+  {id:'sdb14',n:'🦷 Bain de bouche',z:'SDB',f:7},
+  {id:'sdb15',n:'💄 Trier le maquillage',z:'SDB',f:30},
+  {id:'sdb16',n:'🚿 Ranger vasque SDB',z:'SDB',f:2},
 
   // BUANDERIE
   {id:'b1',n:'👕 Lancer machine',z:'Buanderie',f:2},
@@ -2568,6 +2571,7 @@ const ALL_TASKS=[
   {id:'mg2',n:'🤖 Nettoyer robot aspirateur',z:'Maison',f:7},
   {id:'mg3',n:'💡 Nettoyer interrupteurs dressing',z:'Maison',f:30},
   {id:'mg4',n:'🗂️ Trier placard SDB',z:'Maison',f:30},
+  {id:'mg5',n:'🤖 Nettoyer station robot aspirateur',z:'Maison',f:7},
 
   // VOITURE
   {id:'v1',n:'🚗 Nettoyer intérieur voiture',z:'Voiture',f:30},
@@ -2759,6 +2763,8 @@ function buildBlocs(){
   // MATIN
   const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
   const tachesMatin=IS_WORK?getTasksMatin(2,tachesAssignees):getTasksMatin(3,tachesAssignees);
+  // Zones prioritaires selon le jour
+  const zonesPrio=IS_WORK?['Buanderie','SDB','Salon']:['Buanderie','SDB','Salon','Chambre','Cuisine','Entrée'];
   blocs.push({
     id:'bloc-matin',
     emoji:'🌅',
@@ -2792,7 +2798,7 @@ function buildBlocs(){
   // APRÈS-MIDI (jours off ou samedi)
   if(!IS_WORK||(DOW===6)){
     const heureDebut=IS_WORK?travail.fin:'08:30';
-    const tachesAM=getTasksBloc(IS_WORK?3:4,tachesAssignees);
+    const tachesAM=getTasksBloc(IS_WORK?3:4,tachesAssignees,zonesPrio);
     blocs.push({
       id:'bloc-aprem',
       emoji:'☀️',
@@ -2815,7 +2821,7 @@ function buildBlocs(){
   if(IS_WORK){
     tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être',done:false});
   }
-  const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees);
+  const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees,zonesPrio);
   blocs.push({
     id:'bloc-fin',
     emoji:'🏠',
@@ -2872,14 +2878,23 @@ function getTasksMatin(max=2, exclude=new Set()){
   return result;
 }
 
-function getTasksBloc(max=3, exclude=new Set()){
+function getTasksBloc(max=3, exclude=new Set(), priorityZones=null){
+  const zones=priorityZones||['Buanderie','SDB','Salon','Cuisine','Chambre','Entrée','Toilettes','Maison','Voiture','Admin','Chiens'];
+  
   const result=ALL_TASKS.filter(t=>{
     if(t.workOnly) return false;
     if(!t.f) return false;
     if(t.z==='Admin'||t.z==='Marketing') return false;
     if(exclude.has(t.id)) return false;
     return isDue(t);
-  }).sort((a,b)=>daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id)))
+  }).sort((a,b)=>{
+    // Priorité aux zones prioritaires
+    const aIdx=zones.indexOf(a.z);
+    const bIdx=zones.indexOf(b.z);
+    if(aIdx!==bIdx) return aIdx-bIdx;
+    // Ensuite par retard
+    return daysSince(getLastDone('j'+b.id))-daysSince(getLastDone('j'+a.id));
+  })
   .slice(0,max);
   result.forEach(t=>exclude.add(t.id));
   return result;
