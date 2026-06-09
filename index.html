@@ -839,15 +839,22 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être'});
   }
 
-  // Tâches ménagères selon temps libre
-  const maxSoir=isWork?tempsLibre:2;
+  // Tâches quotidiennes manquantes + tâches soir
+  const quotidiennesManquantes=ALL_TASKS.filter(t=>{
+    if(t.f!==1) return false;
+    if(t.workOnly&&!isWork) return false;
+    if(tachesAssignees.has(t.id)) return false;
+    if(t.z==='Admin'||t.z==='Marketing') return false;
+    return true;
+  });
+  quotidiennesManquantes.forEach(t=>tachesAssignees.add(t.id));
+  const maxSoir=isWork?4:2;
   const tachesSoir=getTasksFuture(maxSoir);
-
   blocs.push({
     id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
     heureDebut:isWork?addMinutes(travail.fin,20):'17:00',
     couleur:'#F0FDF4',bordure:'#9FE1CB',textCol:'#166534',
-    tasks:[...tachesFixesSoir,...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))]
+    tasks:[...tachesFixesSoir,...quotidiennesManquantes.map(t=>({id:'j'+t.id,n:t.n,zone:t.z})),...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z}))]
   });
 
   blocs.push({
@@ -2754,125 +2761,6 @@ function getTempsLibreSoir(){
   return 4;
 }
 
-function buildBlocs(){
-  const travail=getHeureTravail();
-  const tempsLibre=getTempsLibreSoir();
-  const blocs=[];
-  const tachesAssignees=new Set();
-
-  // MATIN
-  const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
-  const tachesMatin=IS_WORK?getTasksMatin(4,tachesAssignees):getTasksMatin(5,tachesAssignees);
-  // Zones prioritaires selon le jour
-  const zonesPrio=IS_WORK?['Buanderie','SDB','Salon']:['Buanderie','SDB','Salon','Chambre','Cuisine','Entrée'];
-  blocs.push({
-    id:'bloc-matin',
-    emoji:'🌅',
-    label:'Matin',
-    heureDebut:'07:00',
-    couleur:'#FBEAF0',
-    bordure:'#F4C0D1',
-    textCol:'#993556',
-    tasks:[...routineMatin,...tachesMatin.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
-  });
-
-  // TRAVAIL
-  if(IS_WORK){
-    const tachesPro=ALL_TASKS
-      .filter(t=>(t.z==='Admin'||t.z==='Marketing')&&isDue(t)&&!tachesAssignees.has(t.id))
-      .slice(0,4)
-      .map(t=>{tachesAssignees.add(t.id);return{id:'j'+t.id,n:t.n,zone:t.z,done:false};});
-    blocs.push({
-      id:'bloc-travail',
-      emoji:'💼',
-      label:'Travail',
-      heureDebut:travail.debut,
-      couleur:'#EFF6FF',
-      bordure:'#BFDBFE',
-      textCol:'#1E40AF',
-      tasks:tachesPro,
-      fixed:true
-    });
-  }
-
-  // APRÈS-MIDI (jours off ou samedi)
-  if(!IS_WORK||(DOW===6)){
-    const heureDebut=IS_WORK?travail.fin:'08:30';
-    const tachesAM=getTasksBloc(IS_WORK?3:4,tachesAssignees,zonesPrio);
-    blocs.push({
-      id:'bloc-aprem',
-      emoji:'☀️',
-      label:IS_WORK?'Après-midi':'Matin libre',
-      heureDebut,
-      couleur:'#FEF9C3',
-      bordure:'#FDE68A',
-      textCol:'#854F0B',
-      tasks:tachesAM.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))
-    });
-  }
-
-  // FIN DE JOURNÉE
-  const heureFinJournee=IS_WORK?addMinutes(travail.fin,20):'17:00';
-  const tachesFixesSoir=[
-    {id:'soir-gamelles',n:'🐶 Gamelles d\'eau chiens',zone:'Chiens',done:false},
-    {id:'soir-changer',n:'👗 Se changer / ranger tenues',zone:'Chambre',done:false},
-    {id:'soir-ranger',n:'🏠 Ranger objets/affaires',zone:'Maison',done:false},
-  ];
-  if(IS_WORK){
-    tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être',done:false});
-  }
-  // Ajouter les tâches quotidiennes manquantes
-  const quotidiennesManquantes=ALL_TASKS.filter(t=>{
-    if(t.f!==1) return false;
-    if(t.workOnly&&!IS_WORK) return false;
-    if(tachesAssignees.has(t.id)) return false;
-    if(t.z==='Admin'||t.z==='Marketing') return false;
-    return true;
-  });
-  quotidiennesManquantes.forEach(t=>tachesAssignees.add(t.id));
-  const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees,zonesPrio);
-  blocs.push({
-    id:'bloc-fin',
-    emoji:'🏠',
-    label:'Fin de journée',
-    heureDebut:heureFinJournee,
-    couleur:'#F0FDF4',
-    bordure:'#9FE1CB',
-    textCol:'#166534',
-    tasks:[...tachesFixesSoir,...quotidiennesManquantes.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false})),...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
-  });
-
-  // REPAS
-  const heureRepas=IS_WORK?'20:30':(DOW===6?'18:30':'19:00');
-  blocs.push({
-    id:'bloc-repas',
-    emoji:'🍽️',
-    label:'Repas',
-    heureDebut:heureRepas,
-    couleur:'#FEF3CD',
-    bordure:'#FDE68A',
-    textCol:'#856404',
-    tasks:[
-      {id:'repas1',n:'🍽️ Préparer dîner',done:false},
-      {id:'repas2',n:'🍽️ Débarrasser + vaisselle',done:false}
-    ]
-  });
-
-  // ROUTINE SOIR
-  const heureRoutineSoir=IS_WORK?'21:30':(DOW===6?'19:30':'20:30');
-  blocs.push({
-    id:'bloc-soir',
-    emoji:'🌙',
-    label:'Routine du soir',
-    heureDebut:heureRoutineSoir,
-    couleur:'#FDF4FF',
-    bordure:'#E9D5FF',
-    textCol:'#7E22CE',
-    tasks:ROUTINE_SOIR.map(t=>({id:'s'+t.id,n:t.n,zone:t.z,done:false}))
-  });
-
-  return blocs;
-}
 
 function getTasksMatin(max=2, exclude=new Set()){
   const result=ALL_TASKS.filter(t=>{
