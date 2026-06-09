@@ -226,6 +226,7 @@ textarea{resize:none;min-height:80px;line-height:1.6}
     </div>
 
     <!-- Planning visuel -->
+    <div id="bilan-hier-bandeau"></div>
     <div class="slbl" style="display:flex;justify-content:space-between;align-items:center">
       <span>📅 Ma journée</span>
       <button class="btn btn-light" style="padding:4px 10px;font-size:11px" onclick="resetPlanning()">🔄 Regénérer</button>
@@ -2360,6 +2361,71 @@ function calculerSerie(hist){
   }
   return serie;
 }
+
+function renderBilanHierBandeau(){
+  const el=document.getElementById('bilan-hier-bandeau');
+  if(!el) return;
+  const hier=new Date(TODAY);
+  hier.setDate(TODAY.getDate()-1);
+  const hierStr=hier.toISOString().split('T')[0];
+  // Vérifier si hier n'a pas été terminé
+  if(DB.hist&&DB.hist[hierStr]&&DB.hist[hierStr].mood) {el.innerHTML='';return;}
+  // Vérifier si hier était un jour actif (planning existait)
+  if(!DB.plannings||!DB.plannings[hierStr]) {el.innerHTML='';return;}
+  el.innerHTML=`
+    <div onclick="ouvrirBilanHier('${hierStr}')" style="background:linear-gradient(135deg,#FDF4FF,#EDE9FE);border:1.5px solid #E9D5FF;border-radius:14px;padding:12px 14px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">🌙</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#7E22CE">Tu n'as pas terminé ta journée d'hier</div>
+        <div style="font-size:11px;color:#9333EA;margin-top:2px">${JOURS[hier.getDay()]} ${hier.getDate()} ${MOIS[hier.getMonth()]}</div>
+      </div>
+      <span style="font-size:18px;color:#9333EA">→</span>
+    </div>`;
+}
+
+function ouvrirBilanHier(hierStr){
+  const hier=new Date(hierStr+'T12:00:00');
+  const planning=DB.plannings[hierStr];
+  const total=planning?.blocs?.flatMap(b=>b.tasks).length||0;
+  const faites=Object.values(planning?.vs||{}).filter(v=>v===true).length;
+  const pct=total?Math.round(faites/total*100):0;
+
+  document.getElementById('bilan-date').textContent=
+    `${JOURS[hier.getDay()]} ${hier.getDate()} ${MOIS[hier.getMonth()]}`;
+
+  let html=`<div style="background:#FBEAF0;border-radius:14px;padding:14px;margin-bottom:10px;text-align:center">
+    <div style="font-size:32px;font-weight:700;color:#993556">${pct}%</div>
+    <div style="font-size:12px;color:#D4537E;margin-bottom:8px">${faites} tâches accomplies sur ${total}</div>
+    <div style="height:8px;background:#F4C0D1;border-radius:99px;overflow:hidden">
+      <div style="height:100%;background:linear-gradient(90deg,#993556,#D4537E);border-radius:99px;width:${pct}%"></div>
+    </div>
+  </div>
+  <div style="font-size:13px;color:#993556;font-style:italic;text-align:center;padding:8px">
+    ${pct>=80?'Belle journée hier 💪':pct>=50?'Pas mal hier 🌸':'Chaque jour compte 🌟'}
+  </div>`;
+
+  document.getElementById('bilan-content').innerHTML=html;
+
+  // Modifier le bouton confirmer pour hier
+  document.querySelector('#bilan-modal .btn-rose').onclick=()=>confirmerFinJourneeHier(hierStr);
+  document.getElementById('bilan-modal').classList.add('open');
+}
+
+async function confirmerFinJourneeHier(hierStr){
+  document.getElementById('bilan-modal').classList.remove('open');
+  const planning=DB.plannings[hierStr];
+  if(!DB.hist) DB.hist={};
+  DB.hist[hierStr]={
+    mood:'',
+    grat:['','',''],
+    vs:{...(planning?.vs||{})},
+    intention:''
+  };
+  if(DB.plannings) delete DB.plannings[hierStr];
+  sv();
+  renderAll();
+  toast('✓ Journée d\'hier enregistrée !');
+}
   
 function showLogin(){
   document.getElementById('loading').innerHTML=`
@@ -3177,6 +3243,7 @@ function renderAll(){
   renderLivre();
   renderLivreCours();
   renderGainageHist();
+  renderBilanHierBandeau();
   if(DB.intention) document.getElementById('int-inp').value=DB.intention;
   if(DB.q1) document.getElementById('q1').value=DB.q1;
   if(DB.q2) document.getElementById('q2').value=DB.q2;
