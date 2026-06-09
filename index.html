@@ -3082,9 +3082,16 @@ function renderPlanning(){
             onDropTask(bloc.id,taskIdx);
           });
 
-          // Tap sur la tâche (pas sur le handle)
+          // Tap sur le rond = valider directement
+          row.querySelector('div').onclick=(e)=>{
+            e.stopPropagation();
+            currentTaskAction={taskId:t.id,taskName:t.n,blocId:bloc.id,taskIdx};
+            validerTask();
+          };
+          // Tap sur le nom = ouvrir le menu
           row.onclick=(e)=>{
             if(e.target.textContent==='⠿') return;
+            if(e.target===row.querySelector('div')) return;
             currentTaskAction={taskId:t.id,taskName:t.n,blocId:bloc.id,taskIdx};
             openReportModal();
           };
