@@ -737,7 +737,7 @@ function generatePlanningForDay(ds,dow,isWork,isLight){
   const tempsLibre=isWork?(()=>{
     const[h]=travail.fin.split(':').map(Number);
     if(h<=14) return 4;if(h<=16) return 3;if(h<=17) return 2;return 1;
-  })():6; // Max 6 tâches les jours off
+  })():6; // Max 12 tâches les jours off
 
   const tachesAssignees=new Set();
 
@@ -2748,10 +2748,10 @@ function getTempsLibreSoir(){
   if(!IS_WORK) return 999;
   const fin=getHeureTravail().fin;
   const [h]=fin.split(':').map(Number);
-  if(h<=14) return 5;
-  if(h<=16) return 3;
-  if(h<=17) return 2;
-  return 1;
+  if(h<=14) return 8;
+  if(h<=16) return 6;
+  if(h<=17) return 5;
+  return 4;
 }
 
 function buildBlocs(){
@@ -2762,7 +2762,7 @@ function buildBlocs(){
 
   // MATIN
   const routineMatin=getRoutineMatin().map(t=>({id:'m'+t.id,n:t.n,zone:t.z,done:false}));
-  const tachesMatin=IS_WORK?getTasksMatin(2,tachesAssignees):getTasksMatin(3,tachesAssignees);
+  const tachesMatin=IS_WORK?getTasksMatin(4,tachesAssignees):getTasksMatin(5,tachesAssignees);
   // Zones prioritaires selon le jour
   const zonesPrio=IS_WORK?['Buanderie','SDB','Salon']:['Buanderie','SDB','Salon','Chambre','Cuisine','Entrée'];
   blocs.push({
@@ -2821,6 +2821,15 @@ function buildBlocs(){
   if(IS_WORK){
     tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être',done:false});
   }
+  // Ajouter les tâches quotidiennes manquantes
+  const quotidiennesManquantes=ALL_TASKS.filter(t=>{
+    if(t.f!==1) return false;
+    if(t.workOnly&&!IS_WORK) return false;
+    if(tachesAssignees.has(t.id)) return false;
+    if(t.z==='Admin'||t.z==='Marketing') return false;
+    return true;
+  });
+  quotidiennesManquantes.forEach(t=>tachesAssignees.add(t.id));
   const tachesSoir=getTasksBloc(tempsLibre,tachesAssignees,zonesPrio);
   blocs.push({
     id:'bloc-fin',
@@ -2830,7 +2839,7 @@ function buildBlocs(){
     couleur:'#F0FDF4',
     bordure:'#9FE1CB',
     textCol:'#166534',
-    tasks:[...tachesFixesSoir,...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
+    tasks:[...tachesFixesSoir,...quotidiennesManquantes.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false})),...tachesSoir.map(t=>({id:'j'+t.id,n:t.n,zone:t.z,done:false}))]
   });
 
   // REPAS
