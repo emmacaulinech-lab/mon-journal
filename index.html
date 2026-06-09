@@ -840,14 +840,16 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
     tachesFixesSoir.push({id:'soir-gainage',n:'💪 Gainage 10 min',zone:'Bien-être'});
   }
 
-  // Tâches quotidiennes manquantes + tâches soir
+  // IDs déjà dans le planning (strip prefix m/j/s)
+  const dejaDans=new Set(blocs.flatMap(b=>b.tasks.map(t=>t.id.replace(/^[mjs]/,''))));
   const quotidiennesManquantes=ALL_TASKS.filter(t=>{
     if(t.f!==1) return false;
     if(t.workOnly&&!isWork) return false;
-    if(tachesAssignees.has(t.id)) return false;
+    if(dejaDans.has(t.id)) return false;
     if(t.z==='Admin'||t.z==='Marketing') return false;
     return true;
   });
+  
   quotidiennesManquantes.forEach(t=>tachesAssignees.add(t.id));
   const maxSoir=isWork?4:2;
   const tachesSoir=getTasksFuture(maxSoir);
