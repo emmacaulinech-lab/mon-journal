@@ -841,7 +841,9 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
   }
 
   // IDs déjà dans le planning (strip prefix m/j/s)
-  const dejaDans=new Set(blocs.flatMap(b=>b.tasks.map(t=>t.id.replace(/^[mjs]/,''))));
+  const dejaDans=new Set(blocs.flatMap(b=>b.tasks.map(t=>
+  t.id.startsWith('soir')?t.id:t.id.replace(/^[mjs]/,'')
+)));
   const quotidiennesManquantes=ALL_TASKS.filter(t=>{
     if(t.f!==1) return false;
     if(t.workOnly&&!isWork) return false;
