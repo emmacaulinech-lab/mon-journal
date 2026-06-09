@@ -842,19 +842,18 @@ if(!isWork||dow===6||(isWork&&parseInt(travail.fin.split(':')[0])<=16)){
 
   // IDs déjà dans le planning (strip prefix m/j/s)
   const dejaDans=new Set(blocs.flatMap(b=>b.tasks.map(t=>
-  t.id.startsWith('soir')?t.id:t.id.replace(/^[mjs]/,'')
-)));
+    t.id.startsWith('soir')?t.id:t.id.replace(/^[mjs]/,'')
+  )));
   const quotidiennesManquantes=ALL_TASKS.filter(t=>{
     if(t.f!==1) return false;
     if(t.workOnly&&!isWork) return false;
     if(dejaDans.has(t.id)) return false;
     if(t.z==='Admin'||t.z==='Marketing') return false;
-    return true;
+    return isDueFuture(t);
   });
-  
   quotidiennesManquantes.forEach(t=>tachesAssignees.add(t.id));
   const maxSoir=isWork?4:2;
-  const tachesSoir=getTasksFuture(maxSoir);
+  const tachesSoir=getTasksFuture(maxSoir,tachesAssignees,true);
   blocs.push({
     id:'bloc-fin',emoji:'🏠',label:'Fin de journée',
     heureDebut:isWork?addMinutes(travail.fin,20):'17:00',
